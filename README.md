@@ -7,13 +7,12 @@
 ## ✨ Key Features
 
 <div align="center">
-  <img src="https://drive.google.com/uc?export=view&id=1MHgFUJ8THWzt-4Rk8X0t4g6AjF0V-22d" alt="Dashboard" width="50%">
-  <br>
-  <p><strong>Main Dashboard</strong></p>
+  <img src="https://drive.google.com/uc?export=view&id=1MHgFUJ8THWzt-4Rk8X0t4g6AjF0V-22d" alt="Dashboard" width="48%">
+  <img src="https://drive.google.com/uc?export=view&id=1qjZzLxtguwoLH7EoNiHPSMBcDJNFoJ2V" alt="Recommendations page" width="48%">
+</div>
 
-  <img src="https://drive.google.com/uc?export=view&id=1qjZzLxtguwoLH7EoNiHPSMBcDJNFoJ2V" alt="Recommendations page" width="50%">
-  <br>
-  <p><strong>Recommendations Interface</strong></p>
+<div align="center">
+  <p><strong>Main Dashboard</strong> &nbsp; &nbsp; <strong>Recommendations Interface</strong></p>
 </div>
 
 ### 🎯 Diagnostic Peer Matching
