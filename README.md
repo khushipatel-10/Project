@@ -7,8 +7,8 @@
 ## ✨ Key Features
 
 <div align="center">
-  <img src="https://drive.google.com/uc?export=view&id=1MHgFUJ8THWzt-4Rk8X0t4g6AjF0V-22d" alt="Dashboard" width="48%">
-  <img src="https://drive.google.com/uc?export=view&id=1qjZzLxtguwoLH7EoNiHPSMBcDJNFoJ2V" alt="Recommendations page" width="48%">
+  <img src="https://drive.google.com/uc?export=view&id=1MHgFUJ8THWzt-4Rk8X0t4g6AjF0V-22d" alt="Dashboard" width="49.5%">
+  <img src="https://drive.google.com/uc?export=view&id=1qjZzLxtguwoLH7EoNiHPSMBcDJNFoJ2V" alt="Recommendations page" width="49.5%">
 </div>
 
 <div align="center">
