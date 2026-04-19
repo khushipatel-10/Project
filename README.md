@@ -7,13 +7,13 @@
 ## ✨ Key Features
 
 <div align="center">
-  <img src="https://drive.google.com/file/d/1MHgFUJ8THWzt-4Rk8X0t4g6AjF0V-22d/view?usp=drive_link" alt="Dashboard" width="90%">
+  <img src="https://drive.google.com/uc?export=view&id=1MHgFUJ8THWzt-4Rk8X0t4g6AjF0V-22d" alt="Dashboard" width="90%">
   <br>
   <p><strong>Main Dashboard</strong></p>
 </div>
 
 <div align="center">
-  <img src="https://drive.google.com/file/d/1qjZzLxtguwoLH7EoNiHPSMBcDJNFoJ2V/view?usp=drive_link" alt="Recommendations page" width="90%">
+  <img src="https://drive.google.com/uc?export=view&id=1qjZzLxtguwoLH7EoNiHPSMBcDJNFoJ2V" alt="Recommendations page" width="90%">
   <br>
   <p><strong>Recommendations Interface</strong></p>
 </div>
