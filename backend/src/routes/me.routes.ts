@@ -142,4 +142,56 @@ router.post('/preferences', requireAuth(), handlePreferences);
 router.put('/preferences', requireAuth(), handlePreferences);
 router.post('/onboarding', requireAuth(), handlePreferences);
 
+// GET /me/onboarding — check if user has completed onboarding
+router.get('/onboarding', requireAuth(), async (req: any, res: any) => {
+    try {
+        const clerkUserId = req.auth.userId;
+        if (!clerkUserId) return res.status(401).json({ success: false });
+
+        const user = await prisma.user.findUnique({ where: { clerkId: clerkUserId } });
+        const prefs = user ? await prisma.userPreferences.findUnique({ where: { clerkUserId } }) : null;
+
+        res.json({
+            success: true,
+            data: {
+                userExists: !!user,
+                preferencesHasBeenSet: !!(prefs?.studyMode && prefs?.studyPace)
+            }
+        });
+    } catch (e: any) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// GET /me/notifications — counts + thread data for client-side unread computation
+router.get('/notifications', requireAuth(), async (req: any, res: any) => {
+    try {
+        const clerkUserId = req.auth.userId;
+        if (!clerkUserId) return res.status(401).json({ success: false });
+
+        const user = await prisma.user.findUnique({ where: { clerkId: clerkUserId } });
+        if (!user) return res.json({ success: true, data: { pendingConnections: 0, myUserId: '', threads: [] } });
+
+        const [pendingConnections, threads] = await Promise.all([
+            prisma.peerConnection.count({ where: { receiverUserId: user.id, status: 'pending' } }),
+            prisma.messageThread.findMany({
+                where: { participants: { some: { userId: user.id } } },
+                include: { messages: { orderBy: { createdAt: 'desc' }, take: 1 } }
+            })
+        ]);
+
+        const threadData = threads
+            .filter(t => t.messages.length > 0)
+            .map(t => ({
+                id: t.id,
+                lastMessageAt: t.messages[0].createdAt,
+                lastSenderId: t.messages[0].senderId
+            }));
+
+        res.json({ success: true, data: { pendingConnections, myUserId: user.id, threads: threadData } });
+    } catch (e: any) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 export default router;

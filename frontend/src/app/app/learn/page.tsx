@@ -5,7 +5,6 @@ import { useAuth } from "@clerk/nextjs";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PageShell } from "@/components/layout/PageShell";
-import { Card, CardContent, CardTitle, CardHeader, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UploadCloud, Loader2, Send, Sparkles, CheckCircle2, Folder, FileText, AlertCircle } from "lucide-react";
 
@@ -31,15 +30,10 @@ export default function LearnPage() {
     const [error, setError] = useState<string | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const chatInputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        if (!isLoaded) return;
-        fetchSessions();
-    }, [isLoaded]);
-
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, isTyping]);
+    useEffect(() => { if (!isLoaded) return; fetchSessions(); }, [isLoaded]);
+    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isTyping]);
 
     async function fetchSessions() {
         try {
@@ -51,12 +45,8 @@ export default function LearnPage() {
     }
 
     async function handleSelectSession(session: Session) {
-        setSessionId(null);
-        setEvaluationResult(null);
-        setError(null);
-
+        setSessionId(null); setEvaluationResult(null); setError(null);
         if (session.status === 'active') {
-            // Resume active session — load its messages and re-enter chat
             try {
                 const token = await getToken();
                 const res = await fetch(`${API}/learn/${session.id}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -64,62 +54,48 @@ export default function LearnPage() {
                 if (data.success) {
                     const loaded: Session = data.data;
                     const msgs = Array.isArray(loaded.messages) ? loaded.messages : [];
-                    if (msgs.length === 0) {
-                        // Fresh session with no messages yet — show welcome
-                        setMessages([{ role: 'assistant', content: "I've reviewed your document! What concepts would you like to focus on, or shall I quiz you on the core ideas?" }]);
-                    } else {
-                        setMessages(msgs);
-                    }
+                    setMessages(msgs.length === 0
+                        ? [{ role: 'assistant', content: "I've reviewed your document! What concepts would you like to focus on, or shall I quiz you on the core ideas?" }]
+                        : msgs);
                     setSessionId(loaded.id);
                     setSessionStatus('active');
                     setSelectedSession(null);
                 }
             } catch (e) { console.error(e); }
         } else {
-            // Completed session — show read-only transcript
             setSelectedSession(session);
         }
     }
 
     async function handleUpload() {
         if (!file || !isLoaded) return;
-        setIsUploading(true);
-        setError(null);
+        setIsUploading(true); setError(null);
         try {
             const formData = new FormData();
             formData.append("file", file);
             const token = await getToken();
             const res = await fetch(`${API}/learn/upload`, {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-                body: formData
+                method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData
             });
             const data = await res.json();
             if (res.ok && data.success) {
                 setSessionId(data.data.sessionId);
                 setSessionStatus('active');
-                setMessages([{
-                    role: 'assistant',
-                    content: "I've reviewed your document! What concepts would you like to focus on, or shall I start by quizzing you on the core ideas?"
-                }]);
+                setMessages([{ role: 'assistant', content: "I've reviewed your document! What concepts would you like to focus on, or shall I start by quizzing you on the core ideas?" }]);
                 await fetchSessions();
             } else {
                 setError("Failed to upload: " + data.message);
             }
-        } catch (e) {
-            setError("Upload error. Please try again.");
-        } finally {
-            setIsUploading(false);
-        }
+        } catch (e) { setError("Upload error. Please try again."); }
+        finally { setIsUploading(false); }
     }
 
     async function handleSendMessage() {
         if (!input.trim() || !sessionId || !isLoaded) return;
         const userMsg = input.trim();
-        setInput("");
+        setInput(""); chatInputRef.current?.focus();
         setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
         setIsTyping(true);
-
         try {
             const token = await getToken();
             const res = await fetch(`${API}/learn/chat`, {
@@ -127,15 +103,11 @@ export default function LearnPage() {
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sessionId, message: userMsg })
             });
-
             if (!res.body) throw new Error("No response body");
-
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
             let assistantContent = "";
-
             setMessages(prev => [...prev, { role: 'assistant', content: "" }]);
-
             while (true) {
                 const { value, done } = await reader.read();
                 if (done) break;
@@ -146,155 +118,173 @@ export default function LearnPage() {
                             const parsed = JSON.parse(line.slice(6));
                             if (parsed.text) {
                                 assistantContent += parsed.text;
-                                setMessages(prev => {
-                                    const updated = [...prev];
-                                    updated[updated.length - 1] = { role: 'assistant', content: assistantContent };
-                                    return updated;
-                                });
+                                setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: assistantContent }; return u; });
                             }
                             if (parsed.error) setError(parsed.error);
-                        } catch (_) { }
+                        } catch (_) {}
                     }
                 }
             }
-        } catch (e) {
-            console.error(e);
-            setError("Failed to get response. Please try again.");
-        } finally {
-            setIsTyping(false);
-        }
+        } catch (e) { console.error(e); setError("Failed to get response. Please try again."); }
+        finally { setIsTyping(false); setTimeout(() => chatInputRef.current?.focus(), 50); }
     }
 
     async function handleFinishSession() {
         if (!sessionId || !isLoaded) return;
-        setIsEvaluating(true);
-        setError(null);
+        setIsEvaluating(true); setError(null);
         try {
             const token = await getToken();
             const res = await fetch(`${API}/learn/${sessionId}/evaluate`, {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+                method: "POST", headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
             const data = await res.json();
             if (res.ok && data.success) {
                 setEvaluationResult(data.data);
                 setSessionStatus('completed');
                 await fetchSessions();
-            } else {
-                setError(data.message || "Failed to evaluate session.");
-            }
-        } catch (e) {
-            setError("Evaluation error. Please try again.");
-        } finally {
-            setIsEvaluating(false);
-        }
+            } else { setError(data.message || "Failed to evaluate session."); }
+        } catch (e) { setError("Evaluation error. Please try again."); }
+        finally { setIsEvaluating(false); }
     }
 
     function startNewSession() {
-        setSessionId(null);
-        setEvaluationResult(null);
-        setSelectedSession(null);
-        setMessages([]);
-        setFile(null);
-        setError(null);
-        setSessionStatus('active');
+        setSessionId(null); setEvaluationResult(null); setSelectedSession(null);
+        setMessages([]); setFile(null); setError(null); setSessionStatus('active');
     }
 
-    // --- Evaluation Result Screen ---
+    const msgBubble = (m: Message, i: number) => (
+        <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className="max-w-[80%] px-5 py-3.5 rounded-2xl text-[15px] leading-relaxed"
+                style={m.role === 'user' ? {
+                    background: 'linear-gradient(135deg, #3F72AF, #112D4E)',
+                    color: 'white',
+                    borderBottomRightRadius: '4px',
+                    boxShadow: '0 2px 8px rgba(63,114,175,0.25)',
+                } : {
+                    background: 'white',
+                    border: '1px solid #DBE2EF',
+                    color: '#112D4E',
+                    borderBottomLeftRadius: '4px',
+                }}>
+                {m.role === 'assistant' ? (
+                    <div className="prose prose-sm max-w-none prose-p:my-1 prose-li:my-0.5 prose-strong:font-black prose-code:px-1 prose-code:rounded prose-ol:my-1 prose-ul:my-1"
+                        style={{ color: '#112D4E' }}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                    </div>
+                ) : m.content}
+            </div>
+        </div>
+    );
+
+    // Evaluation result screen
     if (evaluationResult) {
+        const scores = [
+            { label: 'Comprehension', value: evaluationResult.comprehensionScore, color: '#3F72AF', bg: 'rgba(63,114,175,0.08)', border: '#DBE2EF' },
+            { label: 'Implementation', value: evaluationResult.implementationScore, color: '#6d4fc7', bg: 'rgba(109,79,199,0.08)', border: '#c4b5fd' },
+            { label: 'Integration', value: evaluationResult.integrationScore, color: '#4a8c42', bg: 'rgba(74,140,66,0.08)', border: '#CAE8BD' },
+        ];
         return (
-            <PageShell showBlobs={true}>
-                <div className="max-w-3xl mx-auto py-12">
-                    <Card className="border-0 shadow-[0_20px_60px_rgba(0,0,0,0.08)] bg-white/90 backdrop-blur-xl rounded-3xl overflow-hidden">
-                        <div className="h-2 w-full bg-gradient-to-r from-brand-teal to-brand-lavender" />
-                        <CardHeader className="text-center pt-10 pb-4">
-                            <div className="mx-auto w-16 h-16 bg-brand-teal/10 rounded-full flex items-center justify-center mb-6">
-                                <CheckCircle2 className="w-8 h-8 text-brand-teal" />
+            <PageShell>
+                <div className="max-w-2xl mx-auto py-12 w-full">
+                    <div className="bg-white rounded-2xl overflow-hidden"
+                        style={{ border: '1px solid #DBE2EF', boxShadow: '0 20px 60px rgba(17,45,78,0.1)' }}>
+                        <div className="h-2 w-full" style={{ background: 'linear-gradient(90deg, #3F72AF, #112D4E, #4a8c42)' }} />
+                        <div className="text-center px-10 pt-10 pb-6">
+                            <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-5"
+                                style={{ background: '#ECFAE5' }}>
+                                <CheckCircle2 className="w-8 h-8" style={{ color: '#4a8c42' }} />
                             </div>
-                            <h2 className="text-3xl font-semibold text-charcoal tracking-tight">Session Complete</h2>
-                            <p className="text-muted-dark mt-2">Your learning profile has been updated.</p>
-                        </CardHeader>
-                        <CardContent className="p-8 space-y-8">
+                            <h2 className="text-3xl font-black tracking-tight" style={{ color: '#112D4E' }}>Session Complete</h2>
+                            <p className="mt-2" style={{ color: '#2b4a70' }}>Your learning profile has been updated.</p>
+                        </div>
+                        <div className="px-8 pb-8 space-y-6">
                             <div className="grid grid-cols-3 gap-4 text-center">
-                                {[
-                                    { label: 'Comprehension', value: evaluationResult.comprehensionScore },
-                                    { label: 'Implementation', value: evaluationResult.implementationScore },
-                                    { label: 'Integration', value: evaluationResult.integrationScore }
-                                ].map(({ label, value }) => (
-                                    <div key={label} className="p-4 bg-black/5 rounded-2xl">
-                                        <div className="text-3xl font-bold text-charcoal">{value}%</div>
-                                        <div className="text-xs font-semibold text-muted-gray uppercase mt-1">{label}</div>
+                                {scores.map(({ label, value, color, bg, border }) => (
+                                    <div key={label} className="p-4 rounded-2xl border" style={{ background: bg, borderColor: border }}>
+                                        <div className="text-3xl font-black" style={{ color }}>{value}%</div>
+                                        <div className="text-xs font-black uppercase tracking-wider mt-1" style={{ color }}>{label}</div>
                                     </div>
                                 ))}
                             </div>
-
                             {evaluationResult.hintDependencyScore !== undefined && (
-                                <div className="p-4 bg-brand-amber/5 border border-brand-amber/20 rounded-2xl text-center">
-                                    <div className="text-sm font-semibold text-brand-amber-dark">Hint Dependency: {evaluationResult.hintDependencyScore}%</div>
-                                    <div className="text-xs text-muted-gray mt-1">Lower is better — shows independent problem-solving</div>
+                                <div className="p-4 rounded-xl border text-center"
+                                    style={{ background: '#FDF3C4', borderColor: '#ECC880' }}>
+                                    <p className="text-sm font-black" style={{ color: '#9B6B30' }}>
+                                        Hint Dependency: {evaluationResult.hintDependencyScore}%
+                                    </p>
+                                    <p className="text-xs mt-0.5" style={{ color: '#6b84a0' }}>Lower is better — shows independent problem-solving</p>
                                 </div>
                             )}
-
                             {evaluationResult.conceptGaps?.length > 0 && (
                                 <div>
-                                    <h3 className="text-sm font-bold text-muted-gray uppercase tracking-wider mb-3">Knowledge Gaps to Work On</h3>
+                                    <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: '#6b84a0' }}>Knowledge Gaps</p>
                                     <div className="flex flex-wrap gap-2">
                                         {evaluationResult.conceptGaps.map((gap: string, i: number) => (
-                                            <span key={i} className="px-3 py-1.5 bg-brand-amber/10 text-brand-amber-dark border border-brand-amber/20 rounded-xl text-sm font-medium">{gap}</span>
+                                            <span key={i} className="px-3 py-1.5 rounded-xl text-sm font-semibold"
+                                                style={{ background: '#FDF3C4', color: '#9B6B30', border: '1px solid #ECC880' }}>{gap}</span>
                                         ))}
                                     </div>
                                 </div>
                             )}
-
                             {evaluationResult.coachFeedback && (
-                                <div className="p-4 bg-brand-teal/5 border border-brand-teal/20 rounded-2xl">
-                                    <p className="text-sm text-brand-teal font-medium italic">"{evaluationResult.coachFeedback}"</p>
+                                <div className="p-4 rounded-xl border" style={{ background: 'rgba(63,114,175,0.04)', borderColor: '#DBE2EF' }}>
+                                    <p className="text-sm italic leading-relaxed" style={{ color: '#2b4a70' }}>
+                                        &ldquo;{evaluationResult.coachFeedback}&rdquo;
+                                    </p>
                                 </div>
                             )}
-                        </CardContent>
-                        <CardFooter className="bg-black/5 p-6 flex justify-center">
-                            <Button onClick={startNewSession} className="bg-charcoal text-white rounded-xl hover:-translate-y-0.5 transition-transform px-8">
-                                Start Another Session
-                            </Button>
-                        </CardFooter>
-                    </Card>
+                            <div className="flex justify-center pt-2">
+                                <Button onClick={startNewSession} className="font-black text-white border-0 rounded-xl px-8 h-12 hover:-translate-y-0.5 transition-all"
+                                    style={{ background: 'linear-gradient(135deg, #3F72AF, #112D4E)', boxShadow: '0 4px 16px rgba(63,114,175,0.35)' }}>
+                                    Start Another Session
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </PageShell>
         );
     }
 
     return (
-        <PageShell showBlobs={!sessionId && !selectedSession}>
-            <div className="flex flex-col md:flex-row h-[calc(100vh-120px)] max-w-6xl mx-auto gap-6">
+        <PageShell>
+            <div className="flex flex-col md:flex-row h-[calc(100vh-120px)] max-w-6xl mx-auto gap-6 w-full">
 
                 {/* Sidebar */}
                 <div className="w-full md:w-64 flex flex-col gap-4">
-                    <Button onClick={startNewSession} className="bg-brand-teal hover:bg-brand-teal/90 text-white shadow-sm w-full font-medium h-12 rounded-xl border-none">
+                    <Button onClick={startNewSession} className="w-full font-black text-white border-0 h-12 rounded-xl hover:-translate-y-0.5 transition-all"
+                        style={{ background: 'linear-gradient(135deg, #3F72AF, #112D4E)', boxShadow: '0 4px 14px rgba(63,114,175,0.35)' }}>
                         + New Study Session
                     </Button>
-                    <div className="flex-1 overflow-y-auto bg-white border border-black/5 rounded-2xl shadow-sm p-3">
+                    <div className="flex-1 overflow-y-auto rounded-2xl border p-3"
+                        style={{ background: 'white', borderColor: '#DBE2EF', boxShadow: '0 2px 8px rgba(17,45,78,0.04)' }}>
                         <div className="flex items-center gap-2 mb-3 px-2">
-                            <Folder className="w-4 h-4 text-brand-lavender" />
-                            <h3 className="text-xs font-semibold text-muted-gray uppercase tracking-wider">My Sessions</h3>
+                            <Folder className="w-4 h-4" style={{ color: '#6d4fc7' }} />
+                            <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: '#6b84a0' }}>My Sessions</h3>
                         </div>
                         {pastSessions.length === 0 ? (
-                            <p className="text-sm text-muted-dark px-2">No sessions yet.</p>
+                            <p className="text-sm px-2" style={{ color: '#6b84a0' }}>No sessions yet.</p>
                         ) : (
-                            <div className="space-y-1 ml-2 border-l-2 border-black/5 pl-2 pb-2">
-                                {pastSessions.map((s) => {
+                            <div className="space-y-1 ml-2 pl-2 pb-2 border-l-2" style={{ borderColor: '#DBE2EF' }}>
+                                {pastSessions.map(s => {
                                     const isActive = s.id === sessionId || selectedSession?.id === s.id;
                                     return (
-                                        <div
-                                            key={s.id}
-                                            onClick={() => handleSelectSession(s)}
-                                            className={`p-2 rounded-xl cursor-pointer transition-colors text-sm flex items-start gap-2 ${isActive ? 'bg-brand-lavender/10 border-brand-lavender/20 border font-medium text-brand-lavender-dark' : 'hover:bg-black/5 text-charcoal border border-transparent'}`}
-                                        >
-                                            <FileText className={`w-4 h-4 mt-0.5 shrink-0 ${isActive ? 'text-brand-lavender' : 'text-muted-gray'}`} />
+                                        <div key={s.id} onClick={() => handleSelectSession(s)}
+                                            className="p-2 rounded-xl cursor-pointer transition-colors text-sm flex items-start gap-2"
+                                            style={{
+                                                background: isActive ? 'rgba(109,79,199,0.08)' : 'transparent',
+                                                border: isActive ? '1px solid rgba(109,79,199,0.2)' : '1px solid transparent',
+                                                color: isActive ? '#4c3490' : '#112D4E',
+                                            }}>
+                                            <FileText className="w-4 h-4 mt-0.5 shrink-0" style={{ color: isActive ? '#6d4fc7' : '#6b84a0' }} />
                                             <div className="min-w-0">
-                                                <div className="line-clamp-1">{s.pdfName || 'Untitled Session'}</div>
+                                                <div className="line-clamp-1 font-semibold">{s.pdfName || 'Untitled Session'}</div>
                                                 <div className="flex items-center gap-1 mt-0.5">
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${s.status === 'active' ? 'bg-brand-teal' : 'bg-muted-gray'}`} />
-                                                    <span className="text-[10px] text-muted-gray">{s.status === 'active' ? 'In Progress' : 'Completed'} · {new Date(s.createdAt).toLocaleDateString()}</span>
+                                                    <div className="w-1.5 h-1.5 rounded-full"
+                                                        style={{ background: s.status === 'active' ? '#4a8c42' : '#6b84a0' }} />
+                                                    <span className="text-[10px]" style={{ color: '#6b84a0' }}>
+                                                        {s.status === 'active' ? 'In Progress' : 'Completed'} · {new Date(s.createdAt).toLocaleDateString()}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -305,154 +295,140 @@ export default function LearnPage() {
                     </div>
                 </div>
 
-                {/* Main Area */}
+                {/* Main area */}
                 <div className="flex-1 flex flex-col h-full">
-                    <div className="mb-6">
-                        <h1 className="text-3xl font-semibold text-charcoal tracking-tight">AI Learning Coach</h1>
-                        <p className="text-muted-dark mt-2">Upload PDF material to begin a Socratic coaching session.</p>
+                    <div className="mb-5">
+                        <h1 className="text-3xl font-black tracking-tight" style={{ color: '#112D4E' }}>AI Learning Coach</h1>
+                        <p className="mt-1" style={{ color: '#2b4a70' }}>Upload PDF material to begin a Socratic coaching session.</p>
                     </div>
 
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-sm text-red-700">
-                            <AlertCircle className="w-4 h-4 shrink-0" />
-                            {error}
+                        <div className="mb-4 p-3 rounded-xl flex items-center gap-2 text-sm font-semibold"
+                            style={{ background: '#fff1f2', border: '1px solid #fecdd3', color: '#be123c' }}>
+                            <AlertCircle className="w-4 h-4 shrink-0" /> {error}
                         </div>
                     )}
 
                     {/* Completed session view */}
                     {selectedSession ? (
-                        <Card className="flex-1 overflow-hidden border border-black/5 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] rounded-2xl flex flex-col">
-                            <CardHeader className="bg-black/5 border-b border-black/5 py-4">
-                                <CardTitle className="text-lg text-charcoal">{selectedSession.pdfName || 'Session'}</CardTitle>
-                                <p className="text-sm text-muted-dark">Completed · {new Date(selectedSession.createdAt).toLocaleDateString()}</p>
-                            </CardHeader>
-                            <CardContent className="flex-1 overflow-y-auto p-6 space-y-6">
+                        <div className="flex-1 overflow-hidden rounded-2xl border flex flex-col"
+                            style={{ background: 'white', borderColor: '#DBE2EF', boxShadow: '0 4px 16px rgba(17,45,78,0.06)' }}>
+                            <div className="border-b px-6 py-4" style={{ borderColor: '#DBE2EF', background: 'rgba(63,114,175,0.03)' }}>
+                                <p className="font-black" style={{ color: '#112D4E' }}>{selectedSession.pdfName || 'Session'}</p>
+                                <p className="text-sm" style={{ color: '#6b84a0' }}>Completed · {new Date(selectedSession.createdAt).toLocaleDateString()}</p>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4">
                                 {selectedSession.scores?.[0] && (
-                                    <div className="grid grid-cols-3 gap-4 text-center mb-6">
+                                    <div className="grid grid-cols-3 gap-3 text-center mb-4">
                                         {[
-                                            { label: 'Comprehension', value: selectedSession.scores[0].comprehensionScore, cls: 'brand-teal' },
-                                            { label: 'Implementation', value: selectedSession.scores[0].implementationScore, cls: 'brand-lavender-dark' },
-                                            { label: 'Integration', value: selectedSession.scores[0].integrationScore, cls: 'brand-amber-dark' }
-                                        ].map(({ label, value, cls }) => (
-                                            <div key={label} className={`p-3 bg-${cls}/10 rounded-xl`}>
-                                                <div className={`text-xl font-bold text-${cls}`}>{value}%</div>
-                                                <div className={`text-[10px] font-semibold text-${cls} uppercase mt-1`}>{label}</div>
+                                            { label: 'Comprehension', value: selectedSession.scores[0].comprehensionScore, color: '#3F72AF', bg: 'rgba(63,114,175,0.08)' },
+                                            { label: 'Implementation', value: selectedSession.scores[0].implementationScore, color: '#6d4fc7', bg: 'rgba(109,79,199,0.08)' },
+                                            { label: 'Integration', value: selectedSession.scores[0].integrationScore, color: '#4a8c42', bg: 'rgba(74,140,66,0.08)' },
+                                        ].map(({ label, value, color, bg }) => (
+                                            <div key={label} className="p-3 rounded-xl" style={{ background: bg }}>
+                                                <div className="text-xl font-black" style={{ color }}>{value}%</div>
+                                                <div className="text-[10px] font-black uppercase mt-0.5" style={{ color }}>{label}</div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
                                 <div className="space-y-4">
-                                    {(Array.isArray(selectedSession.messages) ? selectedSession.messages : []).map((m: Message, i: number) => (
-                                        <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[80%] p-4 rounded-2xl text-[15px] leading-relaxed ${m.role === 'user' ? 'bg-charcoal text-white rounded-br-sm' : 'bg-black/5 text-charcoal border border-black/5 rounded-bl-sm'}`}>
-                                                {m.role === 'assistant' ? (
-                                                    <div className="prose prose-sm max-w-none prose-p:my-1 prose-li:my-0.5 prose-strong:text-charcoal prose-code:text-brand-teal prose-code:bg-brand-teal/10 prose-code:px-1 prose-code:rounded prose-ol:my-1 prose-ul:my-1">
-                                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
-                                                    </div>
-                                                ) : m.content}
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {!Array.isArray(selectedSession.messages) && selectedSession.transcript && (
-                                        (selectedSession.transcript).split('\n\n').filter(l => l.trim()).map((l: string, i: number) => {
+                                    {(Array.isArray(selectedSession.messages) ? selectedSession.messages : []).map((m: Message, i: number) => msgBubble(m, i))}
+                                    {!Array.isArray(selectedSession.messages) && selectedSession.transcript &&
+                                        selectedSession.transcript.split('\n\n').filter(l => l.trim()).map((l: string, i: number) => {
                                             const isUser = l.startsWith('user:');
                                             const content = l.replace(/^(user|assistant): /, '');
-                                            return (
-                                                <div key={i} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                                                    <div className={`max-w-[80%] p-4 rounded-2xl text-[15px] leading-relaxed ${isUser ? 'bg-charcoal text-white rounded-br-sm' : 'bg-black/5 text-charcoal border border-black/5 rounded-bl-sm'}`}>
-                                                        {isUser ? content : (
-                                                            <div className="prose prose-sm max-w-none prose-p:my-1 prose-li:my-0.5 prose-strong:text-charcoal prose-code:text-brand-teal prose-code:bg-brand-teal/10 prose-code:px-1 prose-code:rounded prose-ol:my-1 prose-ul:my-1">
-                                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
+                                            return msgBubble({ role: isUser ? 'user' : 'assistant', content }, i);
                                         })
-                                    )}
+                                    }
                                 </div>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
 
                     ) : !sessionId ? (
                         // Upload screen
-                        <Card className="flex-1 border border-black/5 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] rounded-2xl flex flex-col items-center justify-center p-12 text-center">
-                            <div className="w-20 h-20 bg-brand-teal/5 rounded-full flex items-center justify-center mb-6 border border-brand-teal/10">
-                                <UploadCloud className="w-10 h-10 text-brand-teal opacity-80" />
+                        <div className="flex-1 rounded-2xl border flex flex-col items-center justify-center p-12 text-center"
+                            style={{ background: 'white', borderColor: '#DBE2EF', boxShadow: '0 4px 16px rgba(17,45,78,0.06)' }}>
+                            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6 border"
+                                style={{ background: 'rgba(63,114,175,0.05)', borderColor: '#DBE2EF' }}>
+                                <UploadCloud className="w-10 h-10" style={{ color: '#3F72AF', opacity: 0.8 }} />
                             </div>
-                            <h2 className="text-2xl font-semibold text-charcoal mb-2">Upload Course Material</h2>
-                            <p className="text-muted-dark max-w-md mb-8">Drop your PDF slides, textbook chapters, or assignments. The coach uses Socratic method — guiding you to answers through questions.</p>
+                            <h2 className="text-2xl font-black mb-2" style={{ color: '#112D4E' }}>Upload Course Material</h2>
+                            <p className="max-w-md mb-8 leading-relaxed" style={{ color: '#2b4a70' }}>
+                                Drop your PDF slides, textbook chapters, or assignments. The coach uses Socratic method — guiding you to answers through questions.
+                            </p>
                             <input type="file" accept="application/pdf" onChange={e => e.target.files?.[0] && setFile(e.target.files[0])} className="hidden" id="pdf-upload" />
-                            <label htmlFor="pdf-upload" className="cursor-pointer inline-flex items-center justify-center rounded-xl bg-charcoal text-white px-8 py-3 font-medium shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5 border-0">
+                            <label htmlFor="pdf-upload"
+                                className="cursor-pointer inline-flex items-center justify-center rounded-xl px-8 py-3 font-black text-white transition-all hover:-translate-y-0.5"
+                                style={{ background: 'linear-gradient(135deg, #3F72AF, #112D4E)', boxShadow: '0 4px 14px rgba(63,114,175,0.35)' }}>
                                 Choose PDF File
                             </label>
                             {file && (
-                                <div className="mt-6 flex flex-col items-center">
-                                    <span className="text-sm font-medium text-brand-teal bg-brand-teal/10 px-4 py-2 rounded-xl border border-brand-teal/20 mb-4">{file.name}</span>
-                                    <Button onClick={handleUpload} disabled={isUploading} className="bg-brand-teal text-white rounded-xl font-medium w-full">
+                                <div className="mt-6 flex flex-col items-center gap-4">
+                                    <span className="text-sm font-semibold px-4 py-2 rounded-xl"
+                                        style={{ background: 'rgba(63,114,175,0.08)', color: '#3F72AF', border: '1px solid #DBE2EF' }}>
+                                        {file.name}
+                                    </span>
+                                    <Button onClick={handleUpload} disabled={isUploading}
+                                        className="font-black text-white border-0 rounded-xl px-8"
+                                        style={{ background: 'linear-gradient(135deg, #4a8c42, #2d5a27)' }}>
                                         {isUploading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Parsing...</> : "Start Coaching Session"}
                                     </Button>
                                 </div>
                             )}
-                        </Card>
+                        </div>
 
                     ) : (
                         // Active chat
-                        <Card className="flex-1 flex flex-col overflow-hidden border border-black/5 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] rounded-2xl">
-                            <CardHeader className="bg-black/5 border-b border-black/5 py-4 flex flex-row items-center justify-between">
+                        <div className="flex-1 flex flex-col overflow-hidden rounded-2xl border"
+                            style={{ background: 'white', borderColor: '#DBE2EF', boxShadow: '0 4px 16px rgba(17,45,78,0.06)' }}>
+                            <div className="border-b px-5 py-4 flex items-center justify-between"
+                                style={{ borderColor: '#DBE2EF', background: 'rgba(63,114,175,0.03)' }}>
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-black/5">
-                                        <Sparkles className="w-5 h-5 text-brand-lavender" />
+                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center border"
+                                        style={{ background: 'white', borderColor: '#DBE2EF', boxShadow: '0 2px 8px rgba(17,45,78,0.06)' }}>
+                                        <Sparkles className="w-5 h-5" style={{ color: '#6d4fc7' }} />
                                     </div>
                                     <div>
-                                        <CardTitle className="text-base text-charcoal">Synapse Coach</CardTitle>
-                                        <p className="text-xs text-brand-teal font-medium">Session Active — Socratic Mode</p>
+                                        <p className="font-black" style={{ color: '#112D4E' }}>Synapse Coach</p>
+                                        <p className="text-xs font-semibold" style={{ color: '#4a8c42' }}>Session Active — Socratic Mode</p>
                                     </div>
                                 </div>
                                 <Button variant="outline" onClick={handleFinishSession} disabled={isEvaluating || messages.length < 2}
-                                    className="border-brand-amber/30 text-brand-amber-dark hover:bg-brand-amber/10 rounded-xl">
-                                    {isEvaluating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Finish & Score"}
+                                    className="rounded-xl font-semibold text-sm"
+                                    style={{ borderColor: '#ECC880', color: '#9B6B30' }}>
+                                    {isEvaluating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Scoring...</> : "Finish & Score"}
                                 </Button>
-                            </CardHeader>
+                            </div>
 
-                            <CardContent className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
-                                {messages.map((m, i) => (
-                                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[80%] p-4 rounded-2xl text-[15px] leading-relaxed ${m.role === 'user' ? 'bg-charcoal text-white rounded-br-sm shadow-sm' : 'bg-white text-charcoal border border-black/5 rounded-bl-sm shadow-sm'}`}>
-                                            {m.role === 'assistant' ? (
-                                                <div className="prose prose-sm max-w-none prose-p:my-1 prose-li:my-0.5 prose-headings:text-charcoal prose-strong:text-charcoal prose-code:text-brand-teal prose-code:bg-brand-teal/10 prose-code:px-1 prose-code:rounded prose-ol:my-1 prose-ul:my-1">
-                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
-                                                </div>
-                                            ) : m.content}
-                                        </div>
-                                    </div>
-                                ))}
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ background: '#F9F7F7' }}>
+                                {messages.map((m, i) => msgBubble(m, i))}
                                 {isTyping && messages[messages.length - 1]?.role === 'user' && (
                                     <div className="flex justify-start">
-                                        <div className="bg-white border border-black/5 p-4 rounded-2xl rounded-bl-sm shadow-sm">
-                                            <Loader2 className="w-5 h-5 text-brand-teal animate-spin" />
+                                        <div className="p-4 rounded-2xl border" style={{ background: 'white', borderColor: '#DBE2EF' }}>
+                                            <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#3F72AF' }} />
                                         </div>
                                     </div>
                                 )}
                                 <div ref={messagesEndRef} />
-                            </CardContent>
+                            </div>
 
-                            <CardFooter className="p-4 bg-white border-t border-black/5">
-                                <form onSubmit={e => { e.preventDefault(); handleSendMessage(); }} className="flex w-full gap-3">
-                                    <input
-                                        type="text"
-                                        value={input}
-                                        onChange={e => setInput(e.target.value)}
-                                        placeholder="Answer or ask a question..."
-                                        className="flex-1 px-4 py-3 bg-black/5 border border-transparent focus:border-brand-teal/30 focus:bg-white focus:ring-2 focus:ring-brand-teal/20 rounded-xl outline-none transition-all"
-                                        disabled={isTyping}
-                                    />
-                                    <Button type="submit" disabled={!input.trim() || isTyping} className="bg-brand-teal hover:bg-brand-teal/90 text-white rounded-xl px-6">
-                                        <Send className="w-4 h-4" />
-                                    </Button>
-                                </form>
-                            </CardFooter>
-                        </Card>
+                            <form onSubmit={e => { e.preventDefault(); handleSendMessage(); }}
+                                className="p-4 border-t flex gap-3" style={{ borderColor: '#DBE2EF', background: 'white' }}>
+                                <input ref={chatInputRef} type="text" value={input} onChange={e => setInput(e.target.value)}
+                                    placeholder="Answer or ask a question..."
+                                    className="flex-1 px-4 py-3 rounded-xl outline-none transition-all text-sm"
+                                    style={{ background: '#F9F7F7', border: '1px solid #DBE2EF', color: '#112D4E' }}
+                                    onFocus={e => { e.currentTarget.style.borderColor = '#3F72AF'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63,114,175,0.1)'; e.currentTarget.style.background = 'white'; }}
+                                    onBlur={e => { e.currentTarget.style.borderColor = '#DBE2EF'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = '#F9F7F7'; }}
+                                    disabled={isTyping} />
+                                <Button type="submit" disabled={!input.trim() || isTyping}
+                                    className="rounded-xl px-5 font-black text-white border-0"
+                                    style={{ background: 'linear-gradient(135deg, #3F72AF, #112D4E)' }}>
+                                    <Send className="w-4 h-4" />
+                                </Button>
+                            </form>
+                        </div>
                     )}
                 </div>
             </div>

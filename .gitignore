@@ -42,3 +42,8 @@ next-env.d.ts
 
 # ignore all node_modules anywhere
 node_modules/
+
+# project-root generated files
+DEPLOY.md
+generate_report.py
+*.docx

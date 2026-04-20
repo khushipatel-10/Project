@@ -9,7 +9,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className="antialiased min-h-screen bg-warm-cream text-muted-dark font-sans selection:bg-brand-teal selection:text-white flex flex-col">
+        <body className="antialiased min-h-screen font-sans flex flex-col" style={{ background: '#F9F7F7', color: '#112D4E' }}>
           {children}
         </body>
       </html>

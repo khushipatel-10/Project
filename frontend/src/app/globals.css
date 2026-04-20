@@ -2,8 +2,8 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F9F7F7;
+  --foreground: #112D4E;
 }
 
 @theme inline {
@@ -12,45 +12,146 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  /* Synapse Clean Base Palette */
-  --color-warm-cream: #f8fafc;
-  /* slate-50 */
-  --color-pure-white: #ffffff;
+  /* ─── Surfaces ──────────────────────────────── */
+  --color-warm-cream: #F9F7F7;          /* warm off-white base */
+  --color-surface:    #FFFFFF;
+  --color-surface-2:  #F9F7F7;
 
-  /* Typography */
-  --color-charcoal: #0f172a;
-  /* slate-900 */
-  --color-muted-dark: #334155;
-  /* slate-700 */
-  --color-muted-gray: #64748b;
-  /* slate-500 */
+  /* ─── Typography ────────────────────────────── */
+  --color-charcoal:   #112D4E;          /* deep navy */
+  --color-muted-dark: #2b4a70;          /* mid navy */
+  --color-muted-gray: #6b84a0;          /* blue-tinted slate */
 
-  /* Accent Palette (Clean Professional SaaS) */
-  --color-brand-teal: #2563eb;
-  /* blue-600 */
-  --color-brand-mint: #dbeafe;
-  /* blue-100 */
-  --color-brand-amber: #4f46e5;
-  /* indigo-600 */
-  --color-brand-lavender: #e0e7ff;
-  /* indigo-100 */
-  --color-brand-deep-purple: #7c3aed;
-  /* violet-600 */
+  /* ─── Primary — Steel Blue (#3F72AF family) ─── */
+  --color-brand-teal:     #3F72AF;      /* medium steel blue — primary actions */
+  --color-brand-mint:     #DBE2EF;      /* light blue-gray — light bg */
+  --color-brand-mint-mid: #b8c8df;      /* mid blue-gray */
+  --color-brand-navy:     #112D4E;      /* deep navy — headings, dark buttons */
+
+  /* ─── Success / Strengths — Sage Green ──────── */
+  --color-brand-emerald:       #4a8c42;    /* sage green — text */
+  --color-brand-emerald-light: #ECFAE5;   /* very light green bg */
+  --color-brand-emerald-mid:   #CAE8BD;   /* medium green bg */
+  --color-brand-emerald-dark:  #2d5a27;   /* dark green text */
+
+  /* ─── Accent — Warm Gold (lighter) ─────────── */
+  --color-brand-amber:       #D4974A;   /* lighter golden amber — text/icon */
+  --color-brand-amber-light: #FDF3C4;   /* very light gold bg */
+  --color-brand-amber-mid:   #ECC880;   /* medium gold */
+  --color-brand-amber-dark:  #9B6B30;   /* dark gold text */
+
+  /* ─── Violet — AI / teaching ────────────────── */
+  --color-brand-lavender:       #6d4fc7;   /* softer violet */
+  --color-brand-lavender-light: #ede9fe;
+  --color-brand-lavender-dark:  #4c3490;
+  --color-brand-deep-purple:    #5b3db5;
+
+  /* ─── Rose — social/danger ──────────────────── */
+  --color-brand-rose:       #be123c;
+  --color-brand-rose-light: #ffe4e6;
 }
 
-/* Explicitly enforcing NO dark mode styles ever to respect the core rules. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #ffffff;
-    --foreground: #171717;
+    --background: #F9F7F7;
+    --foreground: #112D4E;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans, 'Inter', system-ui, sans-serif);
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* ─── Card float hover ──────────────────────────────────────────────────── */
+.card-hover {
+  transition: transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1),
+              box-shadow 0.22s ease;
+}
+.card-hover:hover {
+  transform: translateY(-7px);
+  box-shadow: 0 28px 52px rgba(63, 114, 175, 0.18),
+              0 8px 20px rgba(17, 45, 78, 0.1);
+}
+
+.hover-lift {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(63, 114, 175, 0.12);
+}
+
+/* ─── Animations ────────────────────────────────────────────────────────── */
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-slide-up {
+  animation: fade-slide-up 0.4s ease forwards;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.5s ease forwards;
+}
+
+@keyframes draw-ring {
+  from { stroke-dashoffset: 251; }
+}
+.animate-ring {
+  animation: draw-ring 1.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ─── Skeleton ──────────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, #DBE2EF 25%, #F9F7F7 50%, #DBE2EF 75%);
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.5s ease infinite;
+}
+@keyframes skeleton-wave {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─── Option letter badge (quiz) ────────────────────────────────────────── */
+.option-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  font-weight: 800;
+  font-size: 11px;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+/* ─── Prose styling for AI markdown ────────────────────────────────────── */
+.prose-synapse p  { margin: 0.6em 0; line-height: 1.7; }
+.prose-synapse ul { margin: 0.5em 0 0.5em 1.2em; list-style: disc; }
+.prose-synapse li { margin: 0.25em 0; }
+.prose-synapse code {
+  background: #DBE2EF;
+  color: #112D4E;
+  padding: 0.15em 0.4em;
+  border-radius: 5px;
+  font-size: 0.88em;
+}
+.prose-synapse strong { color: #112D4E; font-weight: 700; }
+
+/* ─── Scrollbar (webkit) ─────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: #F9F7F7; }
+::-webkit-scrollbar-thumb  { background: #DBE2EF; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #3F72AF; }

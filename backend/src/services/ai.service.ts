@@ -14,10 +14,11 @@ const openai = new OpenAI({
 
 // Socratic system prompt injected server-side — cannot be bypassed by the client
 function buildSocraticSystemPrompt(pdfText: string): string {
+    const clean = pdfText.replace(/\x00/g, '').replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F]/g, '');
     return `You are Synapse Coach, an expert AI learning tutor. A student has shared the following course material with you:
 
 """
-${pdfText.slice(0, 12000)}
+${clean.slice(0, 12000)}
 """
 
 Your core coaching philosophy is SOCRATIC — you must NEVER give direct answers on the first ask. Follow these rules strictly:
@@ -45,12 +46,17 @@ export class AIService {
         const user = await prisma.user.findUnique({ where: { clerkId: clerkUserId } });
         if (!user) throw new Error("User not found");
 
+        // Strip null bytes and other non-UTF8 sequences PostgreSQL rejects
+        const sanitize = (s: string) => s.replace(/\x00/g, '').replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+        const cleanPdfText = pdfText !== undefined ? sanitize(pdfText) : undefined;
+        const cleanPdfName = pdfName ? sanitize(pdfName) : pdfName;
+
         const session = await prisma.aIStudySession.create({
             data: {
                 userId: user.id,
                 courseId,
-                pdfName,
-                ...(pdfText !== undefined && { pdfText } as any),
+                pdfName: cleanPdfName,
+                ...(cleanPdfText !== undefined && { pdfText: cleanPdfText } as any),
                 messages: [] as any
             } as any
         });

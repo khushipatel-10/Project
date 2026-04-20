@@ -2,10 +2,49 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BookOpen, Zap, Users, Loader2, Save } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
+
+const inputBase: React.CSSProperties = {
+    width: '100%', padding: '12px', borderRadius: '12px', outline: 'none',
+    background: 'white', color: '#112D4E', border: '1px solid #DBE2EF',
+    fontSize: '14px',
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div className="space-y-1.5">
+            <label className="text-xs font-black uppercase tracking-widest block" style={{ color: '#6b84a0' }}>{label}</label>
+            {children}
+        </div>
+    );
+}
+
+function ChipGroup({ options, value, onChange, color, border }: {
+    options: string[]; value: string; onChange: (v: string) => void;
+    color: string; border: string;
+}) {
+    return (
+        <div className="flex flex-wrap gap-3">
+            {options.map(opt => {
+                const selected = value === opt;
+                return (
+                    <div key={opt} onClick={() => onChange(opt)}
+                        className="px-4 py-2.5 rounded-xl border cursor-pointer transition-all text-sm capitalize font-semibold"
+                        style={selected ? {
+                            background: color + '18', borderColor: border, color,
+                            boxShadow: `0 0 0 2px ${color}22`,
+                        } : {
+                            background: 'white', borderColor: '#DBE2EF', color: '#6b84a0',
+                        }}>
+                        {opt}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
 
 export default function ProfilePage() {
     const { getToken, isLoaded } = useAuth();
@@ -13,17 +52,9 @@ export default function ProfilePage() {
     const [saving, setSaving] = useState(false);
     const [saveMsg, setSaveMsg] = useState('');
     const [formData, setFormData] = useState({
-        fullName: '',
-        username: '',
-        contactEmail: '',
-        avatarUrl: '',
-        major: '',
-        learningPace: '',
-        studyMode: '',
-        groupSize: '',
-        offlineOrOnline: 'online',
-        timezone: 'UTC',
-        materialPreferred: 'mixed'
+        fullName: '', username: '', contactEmail: '', avatarUrl: '', major: '',
+        learningPace: '', studyMode: '', groupSize: '',
+        offlineOrOnline: 'online', timezone: 'UTC', materialPreferred: 'mixed'
     });
 
     useEffect(() => {
@@ -34,7 +65,6 @@ export default function ProfilePage() {
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/me`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-
                 if (res.ok) {
                     const data = await res.json();
                     if (data.success && data.data) {
@@ -53,11 +83,8 @@ export default function ProfilePage() {
                         });
                     }
                 }
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
-            }
+            } catch (e) { console.error(e); }
+            finally { setLoading(false); }
         }
         fetchProfile();
     }, [isLoaded, getToken]);
@@ -68,10 +95,7 @@ export default function ProfilePage() {
             const token = await getToken();
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/me/preferences`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     clerkUserName: formData.fullName,
                     email: formData.contactEmail,
@@ -87,7 +111,6 @@ export default function ProfilePage() {
                     }
                 })
             });
-
             const json = await res.json();
             if (res.ok && json.success) {
                 setSaveMsg('Saved successfully.');
@@ -96,224 +119,166 @@ export default function ProfilePage() {
                 setSaveMsg(json.error || json.message || 'Failed to save.');
                 setTimeout(() => setSaveMsg(''), 4000);
             }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setSaving(false);
-        }
+        } catch (e) { console.error(e); }
+        finally { setSaving(false); }
     };
 
+    const set = (key: string) => (v: string) => setFormData(prev => ({ ...prev, [key]: v }));
+
     if (loading) {
-        return <PageShell><div className="p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div></PageShell>;
+        return (
+            <PageShell>
+                <div className="max-w-3xl mx-auto space-y-4">
+                    <div className="h-8 w-64 rounded-xl skeleton" />
+                    <div className="h-96 rounded-2xl skeleton" />
+                </div>
+            </PageShell>
+        );
     }
 
     return (
         <PageShell>
             <div className="max-w-3xl mx-auto w-full">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-semibold text-charcoal tracking-tight">Profile & Preferences</h1>
-                    <p className="text-muted-dark mt-2 font-normal">Update your academic metadata to refine your peer pairing calculations.</p>
+                    <h1 className="text-3xl font-black tracking-tight" style={{ color: '#112D4E' }}>Profile & Preferences</h1>
+                    <p className="mt-1.5" style={{ color: '#2b4a70' }}>Update your academic metadata to refine your peer pairing calculations.</p>
                 </div>
 
-                <Card className="border border-black/5 shadow-[0_10px_30px_rgba(0,0,0,0.06)] bg-white rounded-2xl">
-                    <div className="h-1 w-full bg-black/5 rounded-t-2xl" />
-                    <CardHeader className="pb-4 border-b border-black/5">
-                        <CardTitle className="text-xl font-semibold text-charcoal">Settings</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6 pt-6">
+                <div className="bg-white rounded-2xl border overflow-hidden"
+                    style={{ borderColor: '#DBE2EF', boxShadow: '0 4px 16px rgba(17,45,78,0.06)' }}>
+                    <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, #3F72AF, #112D4E, #4a8c42)' }} />
+                    <div className="p-6 border-b" style={{ borderColor: '#DBE2EF' }}>
+                        <h2 className="font-black text-lg" style={{ color: '#112D4E' }}>Settings</h2>
+                    </div>
 
-                        {/* Personal Information Options */}
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold text-charcoal border-b border-black/5 pb-2">Identity & Contact</h3>
+                    <div className="p-6 space-y-8">
+                        {/* Identity */}
+                        <div className="space-y-5">
+                            <h3 className="text-xs font-black uppercase tracking-widest pb-2 border-b"
+                                style={{ color: '#3F72AF', borderColor: '#DBE2EF' }}>Identity & Contact</h3>
 
-                            <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
-                                <div className="w-20 h-20 rounded-full bg-black/5 border border-black/10 flex items-center justify-center shrink-0 overflow-hidden relative group cursor-pointer">
+                            <div className="flex flex-col sm:flex-row gap-6 items-start">
+                                <div className="w-20 h-20 rounded-xl flex items-center justify-center shrink-0 overflow-hidden relative group cursor-pointer"
+                                    style={{ background: '#DBE2EF' }}>
                                     {formData.avatarUrl ? (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img src={formData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                                     ) : (
-                                        <Users className="w-8 h-8 text-muted-gray" />
+                                        <Users className="w-8 h-8" style={{ color: '#6b84a0' }} />
                                     )}
-                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <span className="text-white text-xs font-medium">Edit Photo</span>
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        style={{ background: 'rgba(17,45,78,0.5)' }}>
+                                        <span className="text-white text-xs font-bold">Edit</span>
                                     </div>
                                 </div>
                                 <div className="space-y-3 flex-1 w-full">
-                                    <div>
-                                        <label className="text-xs font-semibold text-muted-gray uppercase tracking-wider block mb-1">Full Name</label>
-                                        <input
-                                            type="text"
-                                            className="w-full p-3 border border-black/10 rounded-xl focus:border-brand-teal focus:ring-4 focus:ring-brand-teal/10 outline-none bg-white text-muted-dark"
-                                            value={formData.fullName}
-                                            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                                    <Field label="Full Name">
+                                        <input type="text" style={inputBase} value={formData.fullName}
+                                            onChange={e => set('fullName')(e.target.value)}
                                             placeholder="Your full name"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-muted-gray uppercase tracking-wider block mb-1">Username <span className="text-brand-teal normal-case font-normal">(unique — friends can find you by this)</span></label>
+                                            onFocus={e => { e.currentTarget.style.borderColor = '#3F72AF'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63,114,175,0.1)'; }}
+                                            onBlur={e => { e.currentTarget.style.borderColor = '#DBE2EF'; e.currentTarget.style.boxShadow = 'none'; }} />
+                                    </Field>
+                                    <Field label="Username">
                                         <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-gray font-medium">@</span>
-                                            <input
-                                                type="text"
-                                                className="w-full pl-7 pr-3 py-3 border border-black/10 rounded-xl focus:border-brand-teal focus:ring-4 focus:ring-brand-teal/10 outline-none bg-white text-muted-dark"
-                                                value={formData.username}
-                                                onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold" style={{ color: '#6b84a0' }}>@</span>
+                                            <input type="text" style={{ ...inputBase, paddingLeft: '28px' }} value={formData.username}
+                                                onChange={e => set('username')(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                                                 placeholder="yourhandle"
-                                            />
+                                                onFocus={e => { e.currentTarget.style.borderColor = '#3F72AF'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63,114,175,0.1)'; }}
+                                                onBlur={e => { e.currentTarget.style.borderColor = '#DBE2EF'; e.currentTarget.style.boxShadow = 'none'; }} />
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-muted-gray uppercase tracking-wider block mb-1">Contact Email</label>
-                                        <input
-                                            type="email"
-                                            className="w-full p-3 border border-black/10 rounded-xl focus:border-brand-teal focus:ring-4 focus:ring-brand-teal/10 outline-none bg-white text-muted-dark"
-                                            value={formData.contactEmail}
-                                            onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                                    </Field>
+                                    <Field label="Contact Email">
+                                        <input type="email" style={inputBase} value={formData.contactEmail}
+                                            onChange={e => set('contactEmail')(e.target.value)}
                                             placeholder="you@university.edu"
-                                        />
-                                    </div>
+                                            onFocus={e => { e.currentTarget.style.borderColor = '#3F72AF'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63,114,175,0.1)'; }}
+                                            onBlur={e => { e.currentTarget.style.borderColor = '#DBE2EF'; e.currentTarget.style.boxShadow = 'none'; }} />
+                                    </Field>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="space-y-4 pt-4">
-                            <h3 className="text-sm font-semibold text-charcoal border-b border-black/5 pb-2">Academic Parameters</h3>
+                        {/* Academic */}
+                        <div className="space-y-5">
+                            <h3 className="text-xs font-black uppercase tracking-widest pb-2 border-b"
+                                style={{ color: '#3F72AF', borderColor: '#DBE2EF' }}>Academic Parameters</h3>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-muted-gray uppercase tracking-wider flex items-center gap-2">
-                                    <BookOpen className="w-4 h-4 text-brand-mint" /> Academic Major
-                                </label>
-                                <select
-                                    className="w-full p-3 border border-black/10 rounded-xl focus:border-brand-teal focus:ring-4 focus:ring-brand-teal/10 outline-none bg-white text-muted-dark"
-                                    value={formData.major}
-                                    onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                                >
+                            <Field label={<><BookOpen className="w-3.5 h-3.5 inline mr-1.5" style={{ color: '#3F72AF' }} />Academic Major</>}>
+                                <select style={inputBase} value={formData.major} onChange={e => set('major')(e.target.value)}
+                                    onFocus={e => { e.currentTarget.style.borderColor = '#3F72AF'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63,114,175,0.1)'; }}
+                                    onBlur={e => { e.currentTarget.style.borderColor = '#DBE2EF'; e.currentTarget.style.boxShadow = 'none'; }}>
                                     <option value="Computer Science">Computer Science</option>
                                     <option value="Data Science">Data Science</option>
                                     <option value="Software Engineering">Software Engineering</option>
                                     <option value="Mathematics">Mathematics</option>
                                     <option value="Electrical Engineering">Electrical Engineering</option>
                                 </select>
-                            </div>
+                            </Field>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-muted-gray uppercase tracking-wider flex items-center gap-2">
-                                    <Zap className="w-4 h-4 text-brand-amber" /> Velocity
-                                </label>
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {['crash course', 'accelerated', 'steady', 'deep dive'].map(opt => (
-                                        <div
-                                            key={opt}
-                                            onClick={() => setFormData({ ...formData, learningPace: opt })}
-                                            className={`flex-1 p-3 rounded-xl border cursor-pointer transition-all text-center capitalize ${formData.learningPace === opt ? 'border-brand-amber bg-brand-amber/10 text-charcoal font-medium shadow-sm' : 'border-black/5 hover:bg-black/5 bg-white text-muted-gray'}`}
-                                        >
-                                            {opt}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                            <Field label={<><Zap className="w-3.5 h-3.5 inline mr-1.5" style={{ color: '#D4974A' }} />Learning Velocity</>}>
+                                <ChipGroup options={['crash course', 'accelerated', 'steady', 'deep dive']}
+                                    value={formData.learningPace} onChange={set('learningPace')}
+                                    color="#D4974A" border="#ECC880" />
+                            </Field>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-muted-gray uppercase tracking-wider flex items-center gap-2">
-                                    <Users className="w-4 h-4 text-brand-lavender" /> Optimal Hub Size
-                                </label>
-                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {['duo (2)', 'squad (3-4)', 'seminar (5+)'].map((opt) => (
-                                        <div
-                                            key={opt}
-                                            onClick={() => setFormData({ ...formData, groupSize: opt })}
-                                            className={`flex-1 p-3 rounded-xl border cursor-pointer transition-all text-center capitalize ${formData.groupSize === opt ? 'border-brand-lavender bg-brand-lavender/5 text-brand-deep-purple font-medium shadow-sm' : 'border-black/5 hover:bg-black/5 bg-white text-muted-gray'}`}
-                                        >
-                                            {opt}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                            <Field label={<><Users className="w-3.5 h-3.5 inline mr-1.5" style={{ color: '#6d4fc7' }} />Optimal Hub Size</>}>
+                                <ChipGroup options={['duo (2)', 'squad (3-4)', 'seminar (5+)']}
+                                    value={formData.groupSize} onChange={set('groupSize')}
+                                    color="#6d4fc7" border="#c4b5fd" />
+                            </Field>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-muted-gray uppercase tracking-wider flex items-center gap-2">
-                                    <Users className="w-4 h-4 text-brand-teal" /> Processing Modality
-                                </label>
-                                <div className="grid grid-cols-2 gap-4">
-                                    {['visual architectures', 'textual documentation', 'auditory discourse', 'kinesthetic typing'].map(opt => (
-                                        <div
-                                            key={opt}
-                                            onClick={() => setFormData({ ...formData, studyMode: opt })}
-                                            className={`flex-1 p-3 rounded-xl border cursor-pointer transition-all text-center capitalize ${formData.studyMode === opt ? 'border-brand-teal bg-brand-teal/10 text-brand-teal font-medium shadow-sm' : 'border-black/5 hover:bg-black/5 bg-white text-muted-gray'}`}
-                                        >
-                                            {opt}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 pt-4 border-t border-black/5 mt-6">
-                                <h3 className="text-sm font-semibold text-charcoal pb-2">Logistics & Environment</h3>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-semibold text-muted-gray uppercase tracking-wider block">
-                                        Location Preference
-                                    </label>
-                                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {['online', 'in-person campus', 'hybrid'].map(opt => (
-                                            <div
-                                                key={opt}
-                                                onClick={() => setFormData({ ...formData, offlineOrOnline: opt })}
-                                                className={`flex-1 p-3 rounded-xl border cursor-pointer transition-all text-center capitalize ${formData.offlineOrOnline === opt ? 'border-brand-teal bg-brand-teal/10 text-brand-teal font-medium shadow-sm' : 'border-black/5 hover:bg-black/5 bg-white text-muted-gray'}`}
-                                            >
-                                                {opt}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-semibold text-muted-gray uppercase tracking-wider block">
-                                        Timezone Override
-                                    </label>
-                                    <select
-                                        className="w-full p-3 border border-black/10 rounded-xl focus:border-brand-teal focus:ring-4 focus:ring-brand-teal/10 outline-none bg-white text-muted-dark"
-                                        value={formData.timezone}
-                                        onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-                                    >
-                                        <option value="UTC">UTC (Universal)</option>
-                                        <option value="EST">EST (Eastern)</option>
-                                        <option value="CST">CST (Central)</option>
-                                        <option value="MST">MST (Mountain)</option>
-                                        <option value="PST">PST (Pacific)</option>
-                                        <option value="GMT">GMT (Europe)</option>
-                                    </select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-semibold text-muted-gray uppercase tracking-wider block">
-                                        Material Preference
-                                    </label>
-                                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {['video lectures', 'textbooks', 'practice problems', 'mixed'].map(opt => (
-                                            <div
-                                                key={opt}
-                                                onClick={() => setFormData({ ...formData, materialPreferred: opt })}
-                                                className={`flex-1 p-3 rounded-xl border cursor-pointer transition-all text-center capitalize ${formData.materialPreferred === opt ? 'border-brand-amber bg-brand-amber/10 text-charcoal font-medium shadow-sm' : 'border-black/5 hover:bg-black/5 bg-white text-muted-gray'}`}
-                                            >
-                                                {opt}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
+                            <Field label={<><Users className="w-3.5 h-3.5 inline mr-1.5" style={{ color: '#3F72AF' }} />Processing Modality</>}>
+                                <ChipGroup options={['visual architectures', 'textual documentation', 'auditory discourse', 'kinesthetic typing']}
+                                    value={formData.studyMode} onChange={set('studyMode')}
+                                    color="#3F72AF" border="#b8c8df" />
+                            </Field>
                         </div>
 
-                    </CardContent>
-                </Card>
+                        {/* Logistics */}
+                        <div className="space-y-5">
+                            <h3 className="text-xs font-black uppercase tracking-widest pb-2 border-b"
+                                style={{ color: '#3F72AF', borderColor: '#DBE2EF' }}>Logistics & Environment</h3>
+
+                            <Field label="Location Preference">
+                                <ChipGroup options={['online', 'in-person campus', 'hybrid']}
+                                    value={formData.offlineOrOnline} onChange={set('offlineOrOnline')}
+                                    color="#3F72AF" border="#b8c8df" />
+                            </Field>
+
+                            <Field label="Timezone">
+                                <select style={inputBase} value={formData.timezone} onChange={e => set('timezone')(e.target.value)}
+                                    onFocus={e => { e.currentTarget.style.borderColor = '#3F72AF'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63,114,175,0.1)'; }}
+                                    onBlur={e => { e.currentTarget.style.borderColor = '#DBE2EF'; e.currentTarget.style.boxShadow = 'none'; }}>
+                                    <option value="UTC">UTC (Universal)</option>
+                                    <option value="EST">EST (Eastern)</option>
+                                    <option value="CST">CST (Central)</option>
+                                    <option value="MST">MST (Mountain)</option>
+                                    <option value="PST">PST (Pacific)</option>
+                                    <option value="GMT">GMT (Europe)</option>
+                                </select>
+                            </Field>
+
+                            <Field label="Material Preference">
+                                <ChipGroup options={['video lectures', 'textbooks', 'practice problems', 'mixed']}
+                                    value={formData.materialPreferred} onChange={set('materialPreferred')}
+                                    color="#D4974A" border="#ECC880" />
+                            </Field>
+                        </div>
+                    </div>
+                </div>
 
                 <div className="mt-6 flex items-center justify-end gap-4">
                     {saveMsg && (
-                        <span className={`text-sm font-medium ${saveMsg.includes('success') || saveMsg.includes('Saved') ? 'text-brand-teal' : 'text-red-500'}`}>
+                        <span className="text-sm font-semibold"
+                            style={{ color: saveMsg.includes('success') || saveMsg.includes('Saved') ? '#4a8c42' : '#be123c' }}>
                             {saveMsg}
                         </span>
                     )}
-                    <Button onClick={handleSave} disabled={saving} className="px-6 py-5 rounded-xl bg-charcoal hover:bg-charcoal/90 text-white shadow-[0_4px_14px_rgba(0,0,0,0.1)] transition-transform hover:-translate-y-0.5 border-0 font-medium">
+                    <Button onClick={handleSave} disabled={saving}
+                        className="px-6 h-12 rounded-xl font-black text-white border-0 hover:-translate-y-0.5 transition-all"
+                        style={{ background: 'linear-gradient(135deg, #3F72AF, #112D4E)', boxShadow: '0 4px 14px rgba(63,114,175,0.35)' }}>
                         {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                         Save Changes
                     </Button>

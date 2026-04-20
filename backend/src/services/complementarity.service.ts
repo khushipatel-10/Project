@@ -93,11 +93,14 @@ export class ComplementarityService {
         topComplementaryConcepts.sort((a, b) => b.gap - a.gap);
 
         // 5. Normalize Complementarity [0,1]
-        // Max possible gap is 1.0 per concept for all concepts
-        const maxPossible = numConcepts > 0 ? numConcepts : 1;
+        // Divide by the count of qualifying complementary pairs, not total concepts.
+        // Dividing by numConcepts severely deflates scores — 1 perfect complementary pair
+        // in a 10-concept set would only score 6% instead of ~60%.
+        const countAtoB = topComplementaryConcepts.filter((c: any) => c.helper === userA).length;
+        const countBtoA = topComplementaryConcepts.filter((c: any) => c.helper === userB).length;
 
-        const normalizedHelpAtoB = Math.max(0, Math.min(1, helpAtoB / maxPossible));
-        const normalizedHelpBtoA = Math.max(0, Math.min(1, helpBtoA / maxPossible));
+        const normalizedHelpAtoB = countAtoB > 0 ? Math.max(0, Math.min(1, helpAtoB / countAtoB)) : 0;
+        const normalizedHelpBtoA = countBtoA > 0 ? Math.max(0, Math.min(1, helpBtoA / countBtoA)) : 0;
 
         const complementarityScore = Math.max(normalizedHelpAtoB, normalizedHelpBtoA);
 

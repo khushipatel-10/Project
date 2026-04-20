@@ -62,4 +62,51 @@ router.get('/search', requireAuth(), async (req: any, res: any) => {
     }
 });
 
+// GET /users/:userId/profile — public profile card for a user
+router.get('/:userId/profile', requireAuth(), async (req: any, res: any) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        const [course, prefs] = await Promise.all([
+            prisma.course.findUnique({ where: { code: 'CS101' } }),
+            prisma.userPreferences.findUnique({ where: { clerkUserId: user.clerkId } }).catch(() => null)
+        ]);
+
+        const normalize = (s: number) => s > 1 ? s / 100 : s;
+        let strongConcepts: string[] = [];
+        let weakConcepts: string[] = [];
+        if (course) {
+            const perfs = await prisma.conceptPerformance.findMany({
+                where: { userId, courseId: course.id },
+                orderBy: { masteryScore: 'desc' }
+            });
+            strongConcepts = perfs.filter(p => normalize(p.masteryScore) >= 0.75).slice(0, 5).map(p => p.conceptName);
+            weakConcepts = perfs.filter(p => normalize(p.masteryScore) <= 0.40).sort((a, b) => a.masteryScore - b.masteryScore).slice(0, 4).map(p => p.conceptName);
+        }
+
+        res.json({
+            success: true,
+            data: {
+                id: user.id,
+                name: user.name,
+                username: user.username,
+                major: user.major,
+                strongConcepts,
+                weakConcepts,
+                preferences: prefs ? {
+                    pace: prefs.studyPace,
+                    mode: prefs.studyMode,
+                    learningStyle: prefs.learningStyle,
+                    groupSize: prefs.preferredGroupSize
+                } : null
+            }
+        });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 export default router;

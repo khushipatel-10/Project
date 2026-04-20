@@ -3,17 +3,40 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Target, TrendingUp, TrendingDown, Layers, ArrowRight, Users } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRight, Users, ChevronRight, Trophy, Layers } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 
 interface PeerMatch {
-    user: { id: string; name: string };
+    user: { id: string; name: string; major?: string };
     matchScore: number;
-    vectorSimilarity: number;
-    technicalComplementarity: number;
-    details: { missingConcepts: string[] };
+    details: { teachConcepts: string[]; peerStrongConcepts: string[] };
+}
+
+function ScoreRing({ score }: { score: number }) {
+    const r = 54;
+    const circ = 2 * Math.PI * r;
+    const dash = (score / 100) * circ;
+    const color  = score >= 75 ? '#4a8c42' : score >= 50 ? '#3F72AF' : '#D4974A';
+    const track  = score >= 75 ? '#CAE8BD' : score >= 50 ? '#DBE2EF' : '#FDF3C4';
+
+    return (
+        <div className="relative flex items-center justify-center w-36 h-36">
+            <svg width="144" height="144" viewBox="0 0 144 144" className="-rotate-90">
+                <circle cx="72" cy="72" r={r} fill="none" stroke={track} strokeWidth="13" />
+                <circle cx="72" cy="72" r={r} fill="none"
+                    stroke={color} strokeWidth="13" strokeLinecap="round"
+                    strokeDasharray={`${dash} ${circ}`}
+                    style={{ transition: 'stroke-dasharray 1.4s cubic-bezier(0.4,0,0.2,1)' }}
+                    className="animate-ring"
+                />
+            </svg>
+            <div className="absolute flex flex-col items-center">
+                <span className="text-3xl font-black" style={{ color }}>{Math.round(score)}%</span>
+                <span className="text-xs font-semibold" style={{ color: '#6b84a0' }}>mastery</span>
+            </div>
+        </div>
+    );
 }
 
 export default function AssessmentResultsPage() {
@@ -25,159 +48,202 @@ export default function AssessmentResultsPage() {
 
     useEffect(() => {
         const data = sessionStorage.getItem('lastAssessmentResult');
-        if (data) {
-            // eslint-disable-next-line
-            setResults(JSON.parse(data));
-        } else {
-            router.push('/app/recommendations');
-        }
+        if (data) setResults(JSON.parse(data));
+        else router.push('/app/recommendations');
     }, [router]);
 
     useEffect(() => {
         if (!results) return;
-        const fetchPeers = async () => {
+        (async () => {
             setPeersLoading(true);
             try {
                 const token = await getToken();
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/recommendations/me`, {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/recommendations/me`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 const json = await res.json();
-                if (json.success) {
-                    setPeers((json.data.topPairs || []).slice(0, 3));
-                }
-            } catch {
-                // silently fail — peer panel is non-critical
-            } finally {
-                setPeersLoading(false);
-            }
-        };
-        fetchPeers();
+                if (json.success) setPeers((json.data.topPairs || []).slice(0, 3));
+            } catch { /* non-critical */ }
+            finally { setPeersLoading(false); }
+        })();
     }, [results, getToken]);
 
     if (!results) return null;
 
+    const score = results.score ?? 0;
+    const grade =
+        score >= 85 ? { label: 'Excellent',  color: '#4a8c42', bg: '#ECFAE5', border: '#CAE8BD' } :
+        score >= 70 ? { label: 'Proficient', color: '#3F72AF', bg: '#DBE2EF', border: '#b8c8df' } :
+        score >= 50 ? { label: 'Developing', color: '#D4974A', bg: '#FDF3C4', border: '#ECC880' } :
+                      { label: 'Beginner',   color: '#be123c', bg: '#fff1f2', border: '#fecdd3' };
+
     return (
         <PageShell>
-            <div className="max-w-3xl mx-auto w-full space-y-8 animate-in slide-in-from-bottom-4 duration-700 relative z-10">
-                <div className="text-center space-y-4 mb-10">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white text-brand-teal mb-2 shadow-[0_4px_14px_rgba(0,0,0,0.04)] border border-black/5">
-                        <Target className="w-10 h-10 opacity-80" />
+            <div className="max-w-3xl mx-auto w-full space-y-5 animate-fade-slide-up">
+
+                {/* Hero score card */}
+                <div className="bg-white rounded-2xl overflow-hidden border"
+                    style={{ borderColor: '#DBE2EF', boxShadow: '0 8px 32px rgba(17,45,78,0.09)' }}>
+                    <div className="h-2 w-full"
+                        style={{ background: 'linear-gradient(90deg, #3F72AF, #112D4E, #4a8c42)' }} />
+                    <div className="p-8 flex flex-col sm:flex-row items-center gap-8">
+                        <ScoreRing score={score} />
+                        <div className="flex-1 text-center sm:text-left">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black mb-3"
+                                style={{ background: grade.bg, color: grade.color, border: `1px solid ${grade.border}` }}>
+                                <Trophy className="w-3.5 h-3.5" /> {grade.label}
+                            </div>
+                            <h1 className="text-3xl font-black tracking-tight" style={{ color: '#112D4E' }}>
+                                Diagnosis Complete
+                            </h1>
+                            <p className="mt-2 leading-relaxed text-sm" style={{ color: '#2b4a70' }}>
+                                Your knowledge vector has been computed and your profile reindexed. Peer recommendations are now more accurate.
+                            </p>
+                            {results.conceptScores && Object.keys(results.conceptScores).length > 0 && (
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    {Object.entries(results.conceptScores as Record<string, number>).slice(0, 4).map(([concept, s]) => (
+                                        <span key={concept} className="text-xs font-bold px-2.5 py-1 rounded-lg"
+                                            style={{
+                                                background: (s as number) >= 70 ? '#ECFAE5' : '#FDF3C4',
+                                                color:      (s as number) >= 70 ? '#2d5a27' : '#9B6B30',
+                                                border: `1px solid ${(s as number) >= 70 ? '#CAE8BD' : '#ECC880'}`,
+                                            }}>
+                                            {concept}: {Math.round(s as number)}%
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <h1 className="text-4xl font-semibold text-charcoal tracking-tight">Diagnosis Complete</h1>
-                    <p className="text-lg text-muted-dark max-w-xl mx-auto font-normal">
-                        Your knowledge vector has been successfully computed. Our algorithmic engine has reindexed your profile based on real demonstrated mastery.
-                    </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card className="md:col-span-1 text-center bg-white border border-black/5 shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden flex flex-col justify-center py-8 rounded-2xl">
-                        <CardHeader className="pb-2">
-                            <CardDescription className="text-muted-gray uppercase tracking-widest font-semibold text-xs">Overall Mastery Score</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex flex-col justify-center">
-                            <div className="text-6xl font-black text-brand-teal">{Math.round(results.score)}%</div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="md:col-span-2 border border-black/5 shadow-[0_10px_30px_rgba(0,0,0,0.06)] bg-white rounded-2xl">
-                        <div className="h-1 w-full bg-black/5 rounded-t-2xl" />
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-xl font-semibold text-charcoal">
-                                <Layers className="w-5 h-5 text-brand-teal" /> Concept Breakdown
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-
-                            <div>
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-muted-gray uppercase tracking-wider mb-3">
-                                    <TrendingUp className="w-4 h-4 text-brand-teal" /> Operational Strengths
-                                </h4>
+                {/* Concept breakdown */}
+                <div className="bg-white rounded-2xl border overflow-hidden"
+                    style={{ borderColor: '#DBE2EF', boxShadow: '0 4px 16px rgba(17,45,78,0.06)' }}>
+                    <div className="px-6 py-4 border-b flex items-center gap-2" style={{ borderColor: '#DBE2EF' }}>
+                        <Layers className="w-5 h-5" style={{ color: '#3F72AF' }} />
+                        <h2 className="font-black" style={{ color: '#112D4E' }}>Concept Breakdown</h2>
+                    </div>
+                    <div className="p-6 grid sm:grid-cols-2 gap-6">
+                        <div>
+                            <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-wider mb-3"
+                                style={{ color: '#4a8c42' }}>
+                                <TrendingUp className="w-3.5 h-3.5" /> Strengths
+                            </h3>
+                            {results.strengths?.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
-                                    {results.strengths?.length > 0 ? results.strengths.map((s: string) => (
-                                        <span key={s} className="bg-brand-mint/20 text-brand-teal border border-brand-teal/30 px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm">
+                                    {results.strengths.map((s: string) => (
+                                        <span key={s} className="text-sm px-3 py-1.5 rounded-lg font-semibold"
+                                            style={{ background: '#ECFAE5', color: '#2d5a27', border: '1px solid #CAE8BD' }}>
                                             {s}
                                         </span>
-                                    )) : <span className="text-muted-gray font-normal text-sm">Insufficient data to identify strengths.</span>}
+                                    ))}
                                 </div>
-                            </div>
-
-                            <div className="pt-4 border-t border-black/5">
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-muted-gray uppercase tracking-wider mb-3">
-                                    <TrendingDown className="w-4 h-4 text-brand-amber" /> Development Areas
-                                </h4>
+                            ) : (
+                                <p className="text-sm" style={{ color: '#6b84a0' }}>Take more assessments to identify strengths.</p>
+                            )}
+                        </div>
+                        <div>
+                            <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-wider mb-3"
+                                style={{ color: '#D4974A' }}>
+                                <TrendingDown className="w-3.5 h-3.5" /> Development Areas
+                            </h3>
+                            {results.weaknesses?.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
-                                    {results.weaknesses?.length > 0 ? results.weaknesses.map((w: string) => (
-                                        <span key={w} className="bg-brand-amber/10 text-brand-amber border border-brand-amber/30 px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm">
+                                    {results.weaknesses.map((w: string) => (
+                                        <span key={w} className="text-sm px-3 py-1.5 rounded-lg font-semibold"
+                                            style={{ background: '#FDF3C4', color: '#9B6B30', border: '1px solid #ECC880' }}>
                                             {w}
                                         </span>
-                                    )) : <span className="text-muted-gray font-normal text-sm">No significant developmental gaps detected!</span>}
+                                    ))}
                                 </div>
-                                {results.weaknesses?.length > 0 && (
-                                    <div className="mt-4 bg-white border border-black/5 shadow-sm p-4 rounded-xl">
-                                        <p className="text-sm text-muted-dark leading-relaxed font-normal">
-                                            <strong className="text-charcoal block mb-1">Algorithmic Recommendation:</strong>
-                                            Our matching model is now prioritizing peers who excel in
-                                            <span className="font-semibold text-brand-amber"> {results.weaknesses[0]} </span>
-                                            to provide structural complementarity to your learning phase.
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-
-                        </CardContent>
-                    </Card>
+                            ) : (
+                                <p className="text-sm font-semibold" style={{ color: '#4a8c42' }}>No significant gaps detected!</p>
+                            )}
+                        </div>
+                    </div>
+                    {results.weaknesses?.length > 0 && (
+                        <div className="mx-6 mb-6 p-4 rounded-xl border"
+                            style={{ background: 'rgba(63,114,175,0.04)', borderColor: '#DBE2EF' }}>
+                            <p className="text-sm leading-relaxed" style={{ color: '#2b4a70' }}>
+                                <span className="font-black" style={{ color: '#112D4E' }}>Algorithmic action: </span>
+                                The matching engine is now prioritising peers who excel in{' '}
+                                <span className="font-black" style={{ color: '#3F72AF' }}>{results.weaknesses[0]}</span>{' '}
+                                to provide structural complementarity.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
-                {/* Peer Suggestions Panel */}
-                <Card className="border border-black/5 shadow-[0_10px_30px_rgba(0,0,0,0.06)] bg-white rounded-2xl overflow-hidden">
-                    <div className="h-1 w-full bg-brand-teal/20 rounded-t-2xl" />
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-xl font-semibold text-charcoal">
-                            <Users className="w-5 h-5 text-brand-teal" /> Suggested Peers
-                        </CardTitle>
-                        <CardDescription className="text-muted-gray font-normal">
-                            Algorithmically matched based on your updated knowledge vector — vector similarity + concept complementarity + coaching profile.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                {/* Peer suggestions */}
+                <div className="bg-white rounded-2xl border overflow-hidden"
+                    style={{ borderColor: '#DBE2EF', boxShadow: '0 4px 16px rgba(17,45,78,0.06)' }}>
+                    <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: '#DBE2EF' }}>
+                        <div className="flex items-center gap-2">
+                            <Users className="w-5 h-5" style={{ color: '#3F72AF' }} />
+                            <h2 className="font-black" style={{ color: '#112D4E' }}>Suggested Peers</h2>
+                        </div>
+                        <span className="text-xs font-semibold" style={{ color: '#6b84a0' }}>Based on updated vector</span>
+                    </div>
+                    <div className="p-4">
                         {peersLoading ? (
-                            <div className="space-y-3">
-                                {[0, 1, 2].map(i => (
-                                    <div key={i} className="h-16 bg-black/5 rounded-xl animate-pulse" />
-                                ))}
-                            </div>
+                            <div className="space-y-3">{[0,1,2].map(i => <div key={i} className="h-14 rounded-xl skeleton" />)}</div>
                         ) : peers.length === 0 ? (
-                            <p className="text-sm text-muted-gray">No peer matches found yet — ensure other students have completed their assessments.</p>
+                            <p className="text-sm text-center py-6" style={{ color: '#6b84a0' }}>
+                                No matches yet — other students need to complete assessments too.
+                            </p>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="space-y-2">
                                 {peers.map((peer, idx) => (
-                                    <div key={peer.user.id} className="flex items-center gap-4 p-4 bg-black/[0.02] border border-black/5 rounded-xl">
-                                        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-brand-mint/30 text-brand-teal flex items-center justify-center font-bold text-sm">
+                                    <div key={peer.user.id} className="flex items-center gap-4 p-3 rounded-xl transition-colors"
+                                        style={{ background: '#F9F7F7' }}>
+                                        <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white"
+                                            style={{ background: 'linear-gradient(135deg, #3F72AF, #112D4E)' }}>
                                             {idx + 1}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-charcoal text-sm truncate">{peer.user.name}</p>
-                                            {peer.details.missingConcepts.length > 0 && (
-                                                <p className="text-xs text-muted-gray mt-0.5">
-                                                    Strong in: <span className="text-brand-teal font-medium">{peer.details.missingConcepts.slice(0, 2).join(', ')}</span>
+                                            <p className="font-black text-sm" style={{ color: '#112D4E' }}>{peer.user.name}</p>
+                                            {peer.details?.peerStrongConcepts?.length > 0 && (
+                                                <p className="text-xs mt-0.5" style={{ color: '#6b84a0' }}>
+                                                    Strong in:{' '}
+                                                    <span className="font-semibold" style={{ color: '#4a8c42' }}>
+                                                        {peer.details.peerStrongConcepts.slice(0,2).join(', ')}
+                                                    </span>
+                                                </p>
+                                            )}
+                                            {peer.details?.teachConcepts?.length > 0 && (
+                                                <p className="text-xs mt-0.5" style={{ color: '#6b84a0' }}>
+                                                    Can teach:{' '}
+                                                    <span className="font-semibold" style={{ color: '#6d4fc7' }}>
+                                                        {peer.details.teachConcepts.slice(0,2).join(', ')}
+                                                    </span>
                                                 </p>
                                             )}
                                         </div>
-                                        <div className="flex-shrink-0 text-right">
-                                            <div className="text-lg font-black text-brand-teal">{Math.round(peer.matchScore * 100)}%</div>
-                                            <div className="text-xs text-muted-gray">match</div>
+                                        <div className="text-right shrink-0">
+                                            <div className="text-lg font-black" style={{ color: '#3F72AF' }}>
+                                                {Math.round(peer.matchScore * 100)}%
+                                            </div>
+                                            <div className="text-xs" style={{ color: '#6b84a0' }}>match</div>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
-                <div className="flex justify-center pt-4">
-                    <Button size="lg" className="w-full md:w-auto h-14 px-8 text-lg rounded-xl shadow-[0_4px_14px_rgba(0,0,0,0.1)] transition-transform hover:-translate-y-0.5 bg-charcoal hover:bg-charcoal/90 text-white font-medium border-0" onClick={() => router.push('/app/recommendations')}>
-                        View New Vectors & Matches <ArrowRight className="w-5 h-5 ml-2 text-white/70" />
+                {/* CTA */}
+                <div className="flex flex-col sm:flex-row gap-3 pb-6">
+                    <Button onClick={() => router.push('/app/recommendations')}
+                        className="flex-1 h-12 rounded-xl gap-2 font-black text-white border-0 text-base hover:-translate-y-0.5 transition-all"
+                        style={{ background: 'linear-gradient(135deg, #3F72AF, #112D4E)', boxShadow: '0 4px 16px rgba(63,114,175,0.35)' }}>
+                        View Matches <ArrowRight className="w-5 h-5" />
+                    </Button>
+                    <Button variant="outline" onClick={() => router.push('/app/assessments')}
+                        className="rounded-xl h-12 gap-2 font-semibold text-base"
+                        style={{ borderColor: '#DBE2EF', color: '#112D4E' }}>
+                        Take Another <ChevronRight className="w-5 h-5" />
                     </Button>
                 </div>
             </div>

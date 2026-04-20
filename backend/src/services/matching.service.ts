@@ -347,6 +347,14 @@ export class MatchingService {
             }));
         }
 
+        // Fetch the requesting user's concept performances once
+        const myConceptPerfs = await prisma.conceptPerformance.findMany({
+            where: { userId: dbUser.id, courseId }
+        });
+        const normalize = (score: number) => score > 1 ? score / 100 : score;
+        const myMastery: Record<string, number> = {};
+        myConceptPerfs.forEach(c => { myMastery[c.conceptName] = normalize(c.masteryScore); });
+
         const recommendations = [];
 
         for (const match of vectorMatches) {
@@ -355,17 +363,57 @@ export class MatchingService {
 
             const candidatePrefs = await PreferenceService.getPreferences(candidateDb.clerkId);
 
-            let compData: any = { complementarityScore: 0.5, details: { missingConcepts: [], topComplementaryConcepts: [] } };
+            let compData: any = { complementarityScore: 0.5, details: { topComplementaryConcepts: [], sharedStrengths: [], sharedWeaknesses: [] } };
             try {
                 compData = await ComplementarityService.computeMatchScore(dbUser.id, candidateDb.id, courseId);
             } catch (e) { /* ignore */ }
 
-            const prefScore = this.computePreferenceCompatibility(userPrefs, candidatePrefs);
+            // Fetch peer's concept performances for rich badge data
+            const peerConceptPerfs = await prisma.conceptPerformance.findMany({
+                where: { userId: candidateDb.id, courseId },
+                orderBy: { masteryScore: 'desc' }
+            });
 
-            // AI coaching complementarity: measures whether one can teach the other
+            const peerStrongConcepts = peerConceptPerfs
+                .filter(c => normalize(c.masteryScore) >= 0.75)
+                .slice(0, 4)
+                .map(c => c.conceptName);
+
+            const peerWeakConcepts = peerConceptPerfs
+                .filter(c => normalize(c.masteryScore) <= 0.40)
+                .sort((a, b) => a.masteryScore - b.masteryScore)
+                .slice(0, 3)
+                .map(c => c.conceptName);
+
+            // "They can teach you": peer strong AND user weak in same concept
+            const teachConcepts = peerConceptPerfs
+                .filter(c => normalize(c.masteryScore) >= 0.75 && (myMastery[c.conceptName] ?? 1) <= 0.40)
+                .slice(0, 3)
+                .map(c => c.conceptName);
+
+            // Concepts both users are strong in
+            const sharedStrengthConcepts: string[] = compData.details?.sharedStrengths || [];
+
+            // Build human-readable shared preference reasons
+            const sharedPrefReasons: string[] = [];
+            const modeLabel = candidatePrefs?.studyMode || userPrefs?.studyMode;
+            if (userPrefs?.studyMode && candidatePrefs?.studyMode) {
+                if (userPrefs.studyMode === candidatePrefs.studyMode) {
+                    sharedPrefReasons.push(`Both prefer ${userPrefs.studyMode} study`);
+                } else if (userPrefs.studyMode === 'hybrid' || candidatePrefs.studyMode === 'hybrid') {
+                    sharedPrefReasons.push(`Compatible study modality (${modeLabel})`);
+                }
+            }
+            if (userPrefs?.studyPace && candidatePrefs?.studyPace && userPrefs.studyPace === candidatePrefs.studyPace) {
+                sharedPrefReasons.push(`Matching ${userPrefs.studyPace} learning pace`);
+            }
+            if (userPrefs?.learningStyle && candidatePrefs?.learningStyle && userPrefs.learningStyle === candidatePrefs.learningStyle) {
+                sharedPrefReasons.push(`Shared ${userPrefs.learningStyle} learning style`);
+            }
+
+            const prefScore = this.computePreferenceCompatibility(userPrefs, candidatePrefs);
             const aiCompScore = await MatchingService.getAIComplementarityScore(dbUser.id, candidateDb.id);
 
-            // Master Synergistic Score — 35/35/15/15 weighting
             const masterScore =
                 (match.similarityScore * 0.35) +
                 (compData.complementarityScore * 0.35) +
@@ -380,11 +428,16 @@ export class MatchingService {
                 aiCoachingComplementarity: aiCompScore,
                 preferenceCompatibility: prefScore,
                 details: {
-                    missingConcepts: compData.details?.topComplementaryConcepts || []
+                    teachConcepts,
+                    peerStrongConcepts,
+                    peerWeakConcepts,
+                    sharedStrengthConcepts,
+                    sharedPrefReasons
                 },
                 sharedPreferences: {
-                    mode: userPrefs.studyMode === candidatePrefs?.studyMode,
-                    pace: userPrefs.studyPace === candidatePrefs?.studyPace
+                    mode: userPrefs?.studyMode === candidatePrefs?.studyMode,
+                    pace: userPrefs?.studyPace === candidatePrefs?.studyPace,
+                    reasons: sharedPrefReasons
                 }
             });
         }

@@ -3,16 +3,13 @@
 import { useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Activity, Star, Users, Loader2 } from "lucide-react";
+import { Activity, Star, Users, Loader2, TrendingUp, TrendingDown, BookOpen, Zap } from "lucide-react";
 import { PageShell } from "@/components/layout/PageShell";
 
 export default function RecommendationsPage() {
     const { getToken, isLoaded } = useAuth();
     const { user } = useUser();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [recommendations, setRecommendations] = useState<{ topPairs: any[], hubs: any[], hasAssessment: boolean }>({ topPairs: [], hubs: [], hasAssessment: false });
     const [loading, setLoading] = useState(true);
     const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
@@ -25,18 +22,9 @@ export default function RecommendationsPage() {
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/recommendations/me`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.success) {
-                        setRecommendations(data.data);
-                    }
-                }
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
-            }
+                if (res.ok) { const data = await res.json(); if (data.success) setRecommendations(data.data); }
+            } catch (e) { console.error(e); }
+            finally { setLoading(false); }
         }
         fetchRecs();
     }, [isLoaded, getToken]);
@@ -46,23 +34,11 @@ export default function RecommendationsPage() {
             const token = await getToken();
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/connections/request`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    receiverId,
-                    courseId: '15d92016-00f7-4fe7-b423-6ced0b269793'
-                })
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ receiverId, courseId: '15d92016-00f7-4fe7-b423-6ced0b269793' })
             });
-            if (res.ok) {
-                setRequestedIds(prev => new Set(prev).add(receiverId));
-            } else {
-                alert("Failed to send connection request.");
-            }
-        } catch (e) {
-            console.error(e);
-        }
+            if (res.ok) setRequestedIds(prev => new Set(prev).add(receiverId));
+        } catch (e) { console.error(e); }
     };
 
     const handleWithdraw = async (receiverId: string) => {
@@ -70,217 +46,267 @@ export default function RecommendationsPage() {
             const token = await getToken();
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/connections/request/withdraw`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ receiverId })
             });
-            if (res.ok) {
-                setRequestedIds(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(receiverId);
-                    return newSet;
-                });
-            } else {
-                alert("Failed to withdraw connection request.");
-            }
-        } catch (e) {
-            console.error(e);
-        }
+            if (res.ok) setRequestedIds(prev => { const s = new Set(prev); s.delete(receiverId); return s; });
+        } catch (e) { console.error(e); }
     };
 
     if (loading) {
         return (
-            <PageShell showBlobs={false}>
-                <div className="flex justify-center mt-10"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+            <PageShell>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-16">
+                    {[0,1,2,3,4,5].map(i => <div key={i} className="h-72 rounded-2xl skeleton" />)}
+                </div>
             </PageShell>
         );
     }
 
     return (
         <PageShell>
-            {/* Header Area */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-brand-lavender/20 pb-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b"
+                style={{ borderColor: '#DBE2EF' }}>
                 <div>
-                    <h1 className="text-4xl font-semibold text-charcoal tracking-tight">
+                    <h1 className="text-4xl font-black tracking-tight" style={{ color: '#112D4E' }}>
                         My Recommendations
                     </h1>
-                    <p className="text-lg text-muted-dark mt-2 font-normal">
-                        Personalized study partners matched to your unique learning profile.
+                    <p className="text-lg mt-1.5 font-normal" style={{ color: '#2b4a70' }}>
+                        Peers matched to your unique learning vector.
                     </p>
                 </div>
-                <div className="flex items-center gap-3 bg-white p-2 pr-4 rounded-full border border-black/5 shadow-[0_4px_14px_rgba(0,0,0,0.04)] transition-transform hover:-translate-y-0.5">
-                    <img src={user?.imageUrl} alt="Profile" className="w-10 h-10 rounded-full border border-black/5" />
-                    <div className="text-sm">
-                        <p className="font-semibold text-charcoal leading-none">{user?.firstName}</p>
-                        <p className="text-muted-gray text-xs mt-1">Active Learner</p>
+                {user && (
+                    <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl border hover-lift"
+                        style={{ borderColor: '#DBE2EF' }}>
+                        <img src={user.imageUrl} alt="" className="w-9 h-9 rounded-xl" />
+                        <div>
+                            <p className="font-black text-sm leading-none" style={{ color: '#112D4E' }}>{user.firstName}</p>
+                            <p className="text-xs mt-0.5" style={{ color: '#6b84a0' }}>Active Learner</p>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
-            {/* Assessment Call-To-Action Banner */}
+            {/* Assessment banner */}
             {!recommendations.hasAssessment && (
-                <div className="bg-white border border-black/5 rounded-2xl p-6 flex flex-col md:flex-row gap-6 items-start md:items-center shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm text-brand-lavender border border-black/5">
-                        <Activity className="w-6 h-6" />
+                <div className="rounded-2xl p-6 flex flex-col md:flex-row gap-5 items-start md:items-center border"
+                    style={{ background: 'linear-gradient(135deg, rgba(63,114,175,0.04), rgba(17,45,78,0.03))', borderColor: '#DBE2EF' }}>
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: '#DBE2EF' }}>
+                        <Zap className="w-5 h-5" style={{ color: '#3F72AF' }} />
                     </div>
                     <div className="flex-1">
-                        <h4 className="font-semibold text-charcoal text-lg">Optimize Your Matches</h4>
-                        <p className="text-muted-dark mt-1 font-normal">Take your first skill assessment to unlock highly accurate concept-complementarity matching. Right now, matches are based primarily on your onboarding preferences.</p>
+                        <h4 className="font-black" style={{ color: '#112D4E' }}>Unlock precise concept matching</h4>
+                        <p className="mt-1 text-sm" style={{ color: '#2b4a70' }}>
+                            Take a skill assessment to build your knowledge vector. Right now matches use onboarding preferences only.
+                        </p>
                     </div>
                     <Link href="/app/assessments">
-                        <Button className="bg-charcoal hover:bg-charcoal/90 text-white font-medium shadow-[0_4px_14px_rgba(0,0,0,0.1)] transition-transform hover:-translate-y-0.5 border-0 shrink-0 h-12 px-6 rounded-xl">
-                            Take Diagnostic Assessment
+                        <Button className="rounded-xl h-11 px-6 font-black text-white border-0 hover:-translate-y-0.5 transition-all shrink-0"
+                            style={{ background: 'linear-gradient(135deg, #3F72AF, #112D4E)', boxShadow: '0 4px 14px rgba(63,114,175,0.3)' }}>
+                            Take Assessment
                         </Button>
                     </Link>
                 </div>
             )}
 
-            {/* Grid */}
+            {/* Peer cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {recommendations.topPairs && recommendations.topPairs.length > 0 && recommendations.topPairs.map((match: any, idx: number) => {
-                    const scorePercentage = Math.round(match.matchScore * 100) || 0;
+                {recommendations.topPairs?.map((match: any, idx: number) => {
+                    const score = Math.round((match.matchScore ?? 0) * 100);
                     const peer = match.user;
+                    const scoreColor = score >= 75 ? '#4a8c42' : score >= 55 ? '#3F72AF' : '#D4974A';
+                    const scoreBg    = score >= 75 ? '#ECFAE5'  : score >= 55 ? '#DBE2EF'  : '#FDF3C4';
+                    const scoreBorder= score >= 75 ? '#CAE8BD'  : score >= 55 ? '#b8c8df'  : '#ECC880';
+                    const barGrad    = score >= 75
+                        ? 'linear-gradient(90deg,#4a8c42,#B0DB9C)'
+                        : score >= 55
+                        ? 'linear-gradient(90deg,#3F72AF,#112D4E)'
+                        : 'linear-gradient(90deg,#D4974A,#ECC880)';
 
                     return (
-                        <Card key={idx} className="hover:shadow-[0_20px_40px_rgba(0,0,0,0.1)] transition-all duration-300 flex flex-col border border-black/5 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] rounded-2xl">
-                            <CardHeader>
+                        <div key={idx} className="card-hover bg-white rounded-2xl border flex flex-col overflow-hidden"
+                            style={{ borderColor: '#DBE2EF', boxShadow: '0 2px 12px rgba(17,45,78,0.06)' }}>
+                            {/* score bar */}
+                            <div className="h-1.5 w-full" style={{ background: barGrad }} />
+
+                            {/* Card header */}
+                            <div className="p-5 pb-0">
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-white shadow-sm rounded-full flex items-center justify-center text-charcoal font-semibold text-lg border border-black/5">
+                                        <div className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-lg text-white"
+                                            style={{ background: 'linear-gradient(135deg, #3F72AF, #112D4E)' }}>
                                             {peer.name?.charAt(0) || 'U'}
                                         </div>
                                         <div>
-                                            <CardTitle className="text-base font-semibold text-charcoal">{peer.name || 'Anonymous Learner'}</CardTitle>
-                                            <CardDescription className="text-muted-gray">{peer.major || 'Computer Science'}</CardDescription>
+                                            <p className="font-black" style={{ color: '#112D4E' }}>{peer.name || 'Anonymous'}</p>
+                                            <p className="text-xs mt-0.5" style={{ color: '#6b84a0' }}>{peer.major || 'Computer Science'}</p>
                                         </div>
                                     </div>
-                                    <div className="bg-amber-100/50 text-charcoal border border-amber-500/20 rounded-lg px-2 py-1.5 text-xs font-semibold flex items-center gap-1 shadow-sm">
-                                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                                        {scorePercentage}%
+                                    <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black"
+                                        style={{ background: scoreBg, color: scoreColor, border: `1px solid ${scoreBorder}` }}>
+                                        <Star className="w-3 h-3 fill-current" />{score}%
                                     </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent className="space-y-5 flex-1">
-                                <div className="space-y-3">
-                                    <h4 className="text-xs font-semibold text-muted-gray uppercase tracking-wider flex items-center gap-2">
-                                        Why you match
-                                    </h4>
-                                    <ul className="text-sm text-muted-dark space-y-2 font-normal">
-                                        {match.sharedPreferences?.mode && (
-                                            <li className="flex items-center gap-2">
-                                                <span className="w-2 h-2 rounded-full bg-brand-teal"></span> Shared study modality
-                                            </li>
-                                        )}
-                                        {match.sharedPreferences?.pace && (
-                                            <li className="flex items-center gap-2">
-                                                <span className="w-2 h-2 rounded-full bg-brand-teal"></span> Aligned learning velocity
-                                            </li>
-                                        )}
-                                        {match.technicalComplementarity > 0.5 && (
-                                            <li className="flex items-center gap-2">
-                                                <span className="w-2 h-2 rounded-full bg-brand-lavender"></span> High concept complementarity
-                                            </li>
-                                        )}
-                                        {match.vectorSimilarity > 0.7 && (
-                                            <li className="flex items-center gap-2">
-                                                <span className="w-2 h-2 rounded-full bg-brand-lavender"></span> Similar vector space profile
-                                            </li>
-                                        )}
-                                    </ul>
-                                </div>
+                            </div>
 
-                                {match.details?.missingConcepts && match.details.missingConcepts.length > 0 && (
-                                    <div className="pt-3 border-t border-brand-lavender/20">
-                                        <h4 className="text-xs font-semibold text-muted-gray uppercase tracking-wider mb-3">They can teach you</h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {match.details.missingConcepts
-                                                .filter((concept: any) => concept.helper === peer.id)
-                                                .slice(0, 3)
-                                                .map((concept: any, cidx: number) => (
-                                                    <span key={cidx} className="bg-white text-muted-dark font-medium text-xs px-2.5 py-1 rounded-md border border-black/5 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-                                                        {concept.concept}
-                                                    </span>
-                                                ))}
-                                            {match.details.missingConcepts.filter((c: any) => c.helper === peer.id).length === 0 && (
-                                                <span className="text-xs text-muted-gray italic">No severe gaps identified yet</span>
-                                            )}
+                            {/* Concept badges */}
+                            <div className="p-5 space-y-4 flex-1">
+                                {match.details?.peerStrongConcepts?.length > 0 && (
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1"
+                                            style={{ color: '#4a8c42' }}>
+                                            <TrendingUp className="w-3 h-3" /> Strong in
+                                        </p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {match.details.peerStrongConcepts.map((c: string, i: number) => (
+                                                <span key={i} className="text-xs px-2 py-1 rounded-md font-semibold"
+                                                    style={{ background: '#ECFAE5', color: '#2d5a27', border: '1px solid #CAE8BD' }}>
+                                                    {c}
+                                                </span>
+                                            ))}
                                         </div>
                                     </div>
                                 )}
 
-                            </CardContent>
-                            <CardFooter className="flex gap-3 pt-4 border-t border-black/5 bg-white rounded-b-2xl">
+                                {match.details?.teachConcepts?.length > 0 && (
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1"
+                                            style={{ color: '#6d4fc7' }}>
+                                            <BookOpen className="w-3 h-3" /> Can teach you
+                                        </p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {match.details.teachConcepts.map((c: string, i: number) => (
+                                                <span key={i} className="text-xs px-2 py-1 rounded-md font-semibold"
+                                                    style={{ background: '#ede9fe', color: '#4c3490', border: '1px solid #c4b5fd' }}>
+                                                    {c}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {match.details?.peerWeakConcepts?.length > 0 && (
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1"
+                                            style={{ color: '#D4974A' }}>
+                                            <TrendingDown className="w-3 h-3" /> Developing
+                                        </p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {match.details.peerWeakConcepts.map((c: string, i: number) => (
+                                                <span key={i} className="text-xs px-2 py-1 rounded-md font-semibold"
+                                                    style={{ background: '#FDF3C4', color: '#9B6B30', border: '1px solid #ECC880' }}>
+                                                    {c}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!match.details?.peerStrongConcepts?.length && !match.details?.teachConcepts?.length && (
+                                    <p className="text-xs italic" style={{ color: '#6b84a0' }}>
+                                        Concept data will appear after this peer completes an assessment.
+                                    </p>
+                                )}
+
+                                {(match.details?.sharedPrefReasons?.length > 0 || match.technicalComplementarity > 0.5) && (
+                                    <div className="pt-3 border-t" style={{ borderColor: '#DBE2EF' }}>
+                                        <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: '#6b84a0' }}>
+                                            Why you match
+                                        </p>
+                                        <ul className="space-y-1">
+                                            {match.details?.sharedPrefReasons?.map((r: string, i: number) => (
+                                                <li key={i} className="flex items-center gap-2 text-xs" style={{ color: '#2b4a70' }}>
+                                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#3F72AF' }} />
+                                                    {r}
+                                                </li>
+                                            ))}
+                                            {match.technicalComplementarity > 0.5 && (
+                                                <li className="flex items-center gap-2 text-xs" style={{ color: '#2b4a70' }}>
+                                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#6d4fc7' }} />
+                                                    High concept complementarity
+                                                </li>
+                                            )}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-5 pb-5 border-t pt-4" style={{ borderColor: '#DBE2EF' }}>
                                 {requestedIds.has(peer.id) ? (
-                                    <Button onClick={() => handleWithdraw(peer.id)} className="flex-1 w-full gap-2 shadow-sm font-medium bg-black/5 text-charcoal border-transparent hover:bg-black/10">
+                                    <Button onClick={() => handleWithdraw(peer.id)}
+                                        className="w-full rounded-xl h-10 font-black text-sm border bg-white hover:bg-black/5"
+                                        style={{ borderColor: '#DBE2EF', color: '#112D4E' }}>
                                         Withdraw Request
                                     </Button>
                                 ) : (
-                                    <Button
-                                        onClick={() => handleConnect(peer.id)}
-                                        className="flex-1 w-full gap-2 shadow-[0_4px_14px_rgba(0,0,0,0.08)] font-medium transition-transform hover:-translate-y-0.5 bg-brand-teal border border-transparent text-white hover:bg-brand-teal/90"
-                                    >
+                                    <Button onClick={() => handleConnect(peer.id)}
+                                        className="w-full rounded-xl h-10 font-black text-white border-0 text-sm gap-2 hover:-translate-y-0.5 transition-all"
+                                        style={{ background: 'linear-gradient(135deg, #3F72AF, #112D4E)', boxShadow: '0 4px 12px rgba(63,114,175,0.3)' }}>
                                         <Users className="w-4 h-4" /> Connect
                                     </Button>
                                 )}
-                            </CardFooter>
-                        </Card>
-                    )
-                })}
-                {/* Empty State */}
-                {recommendations.topPairs && recommendations.topPairs.length === 0 && !loading && (
-                    <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center p-16 bg-white rounded-2xl border border-black/5 mt-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
-                        <p className="text-muted-dark max-w-md mx-auto font-normal">No recommended peers yet. Keep taking assessments and check back later.</p>
-                    </div>
-                )}
-            </div>
-
-            {/* Hubs Section */}
-            <div className="mt-12 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-brand-teal/20 pb-6">
-                <div>
-                    <h2 className="text-3xl font-semibold text-charcoal tracking-tight">Active Community Hubs</h2>
-                    <p className="text-lg text-muted-dark mt-2 font-normal">Join highly aligned cohorts currently making progress in this course.</p>
-                </div>
-                <Link href="/app/community">
-                    <Button variant="outline" className="gap-2 rounded-full border-black/10 text-charcoal hover:bg-black/5 hover:text-charcoal transition-all">
-                        View All Hubs <Activity className="w-4 h-4" />
-                    </Button>
-                </Link>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 mb-12">
-                {recommendations.hubs && recommendations.hubs.length > 0 && recommendations.hubs.map((hub: any, idx: number) => (
-                    <Card key={idx} className="hover:shadow-[0_20px_40px_rgba(0,0,0,0.1)] transition-all duration-300 flex flex-col border border-black/5 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] rounded-2xl">
-                        <CardHeader>
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <CardTitle className="text-xl font-semibold text-charcoal">{hub.name}</CardTitle>
-                                    <CardDescription className="text-muted-gray mt-1 flex items-center gap-1.5 font-medium">
-                                        <Users className="w-4 h-4 text-brand-teal" /> {hub.memberCount} / 6 Members
-                                    </CardDescription>
-                                </div>
-                                <div className="bg-brand-mint border border-brand-mint/50 rounded-lg px-2 py-1 text-xs font-semibold text-charcoal shadow-sm uppercase tracking-wider">
-                                    {hub.memberCount < 6 ? 'Open' : 'Full'}
-                                </div>
                             </div>
-                        </CardHeader>
-                        <CardFooter className="pt-4 border-t border-black/5 bg-white rounded-b-2xl">
-                            <Link href={`/app/community`} className="w-full">
-                                <Button className="w-full shadow-sm font-medium transition-transform hover:-translate-y-0.5 bg-white border border-black/10 text-charcoal hover:bg-black/5">
-                                    Explore Hub Details
-                                </Button>
-                            </Link>
-                        </CardFooter>
-                    </Card>
-                ))}
+                        </div>
+                    );
+                })}
 
-                {recommendations.hubs && recommendations.hubs.length === 0 && !loading && (
-                    <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center p-16 bg-white rounded-2xl border border-black/5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
-                        <p className="text-muted-dark max-w-md mx-auto font-normal">There are no active hubs for this course right now.</p>
+                {recommendations.topPairs?.length === 0 && (
+                    <div className="col-span-full text-center p-16 bg-white rounded-2xl border"
+                        style={{ borderColor: '#DBE2EF' }}>
+                        <Users className="w-10 h-10 mx-auto mb-3 opacity-30" style={{ color: '#3F72AF' }} />
+                        <p className="font-black mb-1" style={{ color: '#112D4E' }}>No recommendations yet</p>
+                        <p className="text-sm" style={{ color: '#6b84a0' }}>Complete an assessment to unlock concept-based matches.</p>
                     </div>
                 )}
             </div>
+
+            {/* Hubs section */}
+            {recommendations.hubs?.length > 0 && (
+                <>
+                    <div className="flex items-end justify-between gap-4 pt-4 pb-6 border-b" style={{ borderColor: '#DBE2EF' }}>
+                        <div>
+                            <h2 className="text-3xl font-black tracking-tight" style={{ color: '#112D4E' }}>Active Study Hubs</h2>
+                            <p className="mt-1 font-normal" style={{ color: '#2b4a70' }}>Join aligned cohorts making progress together.</p>
+                        </div>
+                        <Link href="/app/community">
+                            <Button variant="outline" className="rounded-xl gap-2 text-sm font-semibold"
+                                style={{ borderColor: '#DBE2EF', color: '#112D4E' }}>
+                                View All <Activity className="w-4 h-4" />
+                            </Button>
+                        </Link>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
+                        {recommendations.hubs.map((hub: any, idx: number) => (
+                            <div key={idx} className="card-hover bg-white rounded-2xl border p-5 flex flex-col gap-4"
+                                style={{ borderColor: '#DBE2EF', boxShadow: '0 2px 12px rgba(17,45,78,0.06)' }}>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="font-black" style={{ color: '#112D4E' }}>{hub.name}</p>
+                                        <p className="text-sm mt-0.5 flex items-center gap-1" style={{ color: '#6b84a0' }}>
+                                            <Users className="w-3.5 h-3.5" /> {hub.memberCount} / 6 members
+                                        </p>
+                                    </div>
+                                    <span className="text-xs font-black px-2.5 py-1 rounded-lg"
+                                        style={hub.memberCount < 6
+                                            ? { background: '#ECFAE5', color: '#2d5a27', border: '1px solid #CAE8BD' }
+                                            : { background: '#fff1f2', color: '#be123c', border: '1px solid #fecdd3' }}>
+                                        {hub.memberCount < 6 ? 'Open' : 'Full'}
+                                    </span>
+                                </div>
+                                <Link href="/app/community" className="w-full">
+                                    <Button className="w-full rounded-xl h-10 font-semibold text-sm border bg-white hover:bg-black/5"
+                                        style={{ borderColor: '#DBE2EF', color: '#112D4E' }}>
+                                        Explore Hub
+                                    </Button>
+                                </Link>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
         </PageShell>
     );
 }

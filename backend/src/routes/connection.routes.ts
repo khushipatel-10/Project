@@ -111,4 +111,31 @@ router.post('/:connectionId/reject', requireAuth(), async (req: any, res: any) =
     }
 });
 
+// DELETE /connections/:connectionId — remove an accepted connection
+router.delete('/:connectionId', requireAuth(), async (req: any, res: any) => {
+    try {
+        const { connectionId } = req.params;
+        const clerkUserId = req.auth.userId;
+
+        const { PrismaClient } = await import('@prisma/client');
+        const prisma = new PrismaClient();
+
+        const user = await prisma.user.findUnique({ where: { clerkId: clerkUserId } });
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        const conn = await prisma.peerConnection.findFirst({
+            where: {
+                id: connectionId,
+                OR: [{ requesterUserId: user.id }, { receiverUserId: user.id }]
+            }
+        });
+        if (!conn) return res.status(404).json({ success: false, message: 'Connection not found' });
+
+        await prisma.peerConnection.delete({ where: { id: connectionId } });
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message || 'Server error' });
+    }
+});
+
 export default router;
