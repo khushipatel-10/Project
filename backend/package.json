@@ -13,25 +13,24 @@
     "dependencies": {
         "@clerk/express": "^1.7.73",
         "@prisma/client": "^5.10.0",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^4.17.25",
+        "@types/multer": "^2.1.0",
+        "@types/node": "^20.19.39",
+        "@types/pdf-parse": "^1.1.5",
         "cors": "^2.8.5",
         "dotenv": "^16.4.5",
         "express": "^4.18.3",
         "express-rate-limit": "^8.2.1",
         "multer": "^2.0.2",
         "openai": "^6.23.0",
-        "pdf-parse": "^1.1.1"
-    },
-    "devDependencies": {
-        "@types/cors": "^2.8.19",
-        "@types/express": "^4.17.25",
-        "@types/multer": "^2.1.0",
-        "@types/node": "^20.19.39",
-        "@types/pdf-parse": "^1.1.5",
+        "pdf-parse": "^1.1.1",
         "prisma": "^5.10.0",
         "ts-node": "^10.9.2",
         "tsx": "^4.7.1",
         "typescript": "^5.9.3"
     },
+    "devDependencies": {},
     "prisma": {
         "seed": "tsx prisma/seed.ts"
     }
