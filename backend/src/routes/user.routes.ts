@@ -72,7 +72,7 @@ router.get('/:userId/profile', requireAuth(), async (req: any, res: any) => {
 
         const [course, prefs] = await Promise.all([
             prisma.course.findUnique({ where: { code: 'CS101' } }),
-            prisma.userPreferences.findUnique({ where: { clerkUserId: user.clerkId } }).catch(() => null)
+            prisma.userPreferences.findUnique({ where: { clerkUserId: user.clerkId ?? undefined } }).catch(() => null)
         ]);
 
         const normalize = (s: number) => s > 1 ? s / 100 : s;
