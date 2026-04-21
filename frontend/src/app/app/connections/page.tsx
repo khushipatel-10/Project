@@ -73,21 +73,21 @@ function ProfileCardModal({ peerId, onClose, onAccept, onDecline }: {
                                         <TrendingUp className="w-3.5 h-3.5" /> Strong in
                                     </h4>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {profile.strongConcepts.map((c, i) => (
+                                        (profile?.strongConcepts ?? []).map((c, i) => (
                                             <span key={i} className="text-xs px-2 py-1 rounded-md font-semibold"
                                                 style={{ background: '#ECFAE5', color: '#2d5a27', border: '1px solid #CAE8BD' }}>{c}</span>
                                         ))}
                                     </div>
                                 </div>
                             )}
-                            {profile?.weakConcepts?.length > 0 && (
+                            {(profile?.weakConcepts?.length ?? 0) > 0 && (
                                 <div>
                                     <h4 className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5"
                                         style={{ color: '#D4974A' }}>
                                         <TrendingDown className="w-3.5 h-3.5" /> Developing
                                     </h4>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {profile.weakConcepts.map((c, i) => (
+                                        (profile?.weakConcepts ?? []).map((c, i) => (
                                             <span key={i} className="text-xs px-2 py-1 rounded-md font-semibold"
                                                 style={{ background: '#FDF3C4', color: '#9B6B30', border: '1px solid #ECC880' }}>{c}</span>
                                         ))}
