@@ -15,14 +15,18 @@
 
 ## ✨ Screenshots
 
-<div align="center">
-
-| | |
-|---|---|
-| ![Screenshot 1](https://drive.google.com/uc?export=view&id=1dtLP0S-h4nTFHovwSsn7etxqwhRt2tiK) | ![Screenshot 2](https://drive.google.com/uc?export=view&id=1qVhY8edXQL1nm9EzC7_mJxpi5FT8cSH-) |
-| **Landing Page** | **Recommendations** |
-
-</div>
+<table align="center" border="0" cellspacing="10">
+  <tr>
+    <td align="center" width="50%">
+      <img src="https://drive.google.com/uc?export=view&id=1dtLP0S-h4nTFHovwSsn7etxqwhRt2tiK" width="100%" />
+      <br/><b>Landing Page</b>
+    </td>
+    <td align="center" width="50%">
+      <img src="https://drive.google.com/uc?export=view&id=1qVhY8edXQL1nm9EzC7_mJxpi5FT8cSH-" width="100%" />
+      <br/><b>Recommendations</b>
+    </td>
+  </tr>
+</table>
 
 ---
 
