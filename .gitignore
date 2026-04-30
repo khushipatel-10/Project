@@ -47,3 +47,20 @@ node_modules/
 DEPLOY.md
 generate_report.py
 *.docx
+
+# LaTeX report
+Synapse_CSCE685_Report.tex
+generate_academic_report.py
+generate_figure5.py
+figure5_radar.png
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
